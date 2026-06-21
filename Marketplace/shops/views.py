@@ -1,23 +1,23 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Shop
+from .models import Boutique
 
 
 class ShopListView(APIView):
 
     def get(self, request):
 
-        shops = Shop.objects.all()
+        boutiques = Boutique.objects.all()
 
         data = []
 
-        for shop in shops:
+        for boutique in boutiques:
             data.append({
-                "id": shop.id,
-                "name": shop.name,
-                "description": shop.description,
-                "city": shop.city,
-                "verified": shop.verified
+                "id": boutique.id,
+                "name": boutique.nom,
+                "description": boutique.description,
+                "city": boutique.city,
+                "verified": boutique.verified
             })
 
         return Response(data)
