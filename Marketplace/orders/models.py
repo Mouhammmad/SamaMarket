@@ -10,12 +10,12 @@ from django.conf import settings
 
 class Order(models.Model):
 
-    STATUS = (
+    STATUS = [
         ('PENDING', 'Pending'),
         ('SHIPPED', 'Shipped'),
         ('DELIVERED', 'Delivered'),
         ('CANCELLED', 'Cancelled')
-    )
+    ]
 
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,

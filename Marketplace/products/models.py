@@ -1,31 +1,32 @@
 from django.db import models
-
+from shops.models import Boutique
 # Create your models here.
 class Category(models.Model):
 
-    name = models.CharField(max_length=100)
+    nom = models.CharField(max_length=100)
 
     def __str__(self):
-        return self.name
+        return self.nom
+
 class Product(models.Model):
 
-    shop = models.ForeignKey(
-        'shops.Shop',
+    boutique = models.ForeignKey(
+        Boutique,
         on_delete=models.CASCADE,
         related_name='products'
     )
 
-    category = models.ForeignKey(
+    categorie = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
         null=True
     )
 
-    name = models.CharField(max_length=200)
+    nom = models.CharField(max_length=200)
 
     description = models.TextField()
 
-    price = models.DecimalField(
+    prix = models.DecimalField(
         max_digits=10,
         decimal_places=2
     )

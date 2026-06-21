@@ -15,21 +15,21 @@ class VendorDashboardView(APIView):
 
         if not product:
             return Response({
-                "products_count": 0,
-                "orders_count": 0,
-                "revenue": 0,
-                "rating": 0
+                "nombre_produits": 0,
+                "nombre_commandes": 0,
+                "revenu": 0,
+                "note": 0
             })
 
-        shop = product.shop
+        boutique = product.shop
 
-        products_count = Product.objects.filter(
-            shop=shop,
+        nombre_produits = Product.objects.filter(
+            shop=boutique,
             active=True
         ).count()
 
-        orders_count = OrderItem.objects.filter(
-            product__shop=shop
+        nombre_commandes = OrderItem.objects.filter(
+            product__shop=boutique
         ).values('order').distinct().count()
 
         revenue = Order.objects.filter(
@@ -39,16 +39,16 @@ class VendorDashboardView(APIView):
         )
 
         avg_rating = Review.objects.filter(
-            product__shop=shop
+            product__shop=boutique
         ).aggregate(
             avg=Avg('rating')
         )
 
         return Response({
-            "products_count": products_count,
-            "orders_count": orders_count,
-            "revenue": revenue["total"] or 0,
-            "rating": avg_rating["avg"] or 0
+            "nombre_produits": nombre_produits,
+            "nombre_commandes": nombre_commandes,
+            "revenu": revenue["total"] or 0,
+            "note": avg_rating["avg"] or 0
         })
 
 
