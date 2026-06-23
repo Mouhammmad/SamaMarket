@@ -1,19 +1,23 @@
-from django.shortcuts import render
+from django.contrib.auth import get_user_model
+from shops.models import Boutique
+#from produits.models import Product
+#from commandes.models import Order
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from products.models import Product
-from orders.models import Order, OrderItem
-from reviews.models import Review
-
-
-# Create your views here.
-class AdminDashboardView(APIView):
+class AdminDashboardStats(APIView):
 
     def get(self, request):
-        return Response({
-            "utilisateurs": 1284,
-            "vendeurs": 87,
-            "produits": 3420,
-            "commandes_jour": 248
-        })
+
+        data = {
+
+            "utilisateurs": 0,  # Placeholder, replace with actual user count if needed
+
+            "vendeurs": Boutique.objects.count(),
+
+            "produits": 0,  # Placeholder, replace with actual product count if needed
+
+            "commandes": 0  # Placeholder, replace with actual order count if needed
+        }
+
+        return Response(data)
