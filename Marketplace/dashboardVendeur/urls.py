@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import VendorDashboardView
+from .views import VendeurDashboardStats
 
 urlpatterns = [
-    path('', VendorDashboardView.as_view(), name='vendor-dashboard'),
+    path('stats/', VendeurDashboardStats.as_view()),
    
 ]

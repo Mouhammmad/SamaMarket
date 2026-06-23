@@ -26,11 +26,7 @@ def home(request):
 urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
-    path('api/accounts/', include('accounts.urls')),
-    path('api/dashboardVendeur/', include('dashboardVendeur.urls')),
-    path('api/dashboardAdmin/', include('dashboardAdmin.urls')),
-    path('api/orders/', include('orders.urls')),
-    path('api/products/', include('products.urls')),
-    path('api/reviews/', include('reviews.urls')),
-    path('api/shops/', include('shops.urls')),
+   path('api/shops/', include('shops.urls')),
+    path('api/dashboard/admin/', include('dashboardAdmin.urls')),
+    path('api/dashboard/vendeur/', include('dashboardVendeur.urls')),
 ]

@@ -38,13 +38,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'accounts',
     'dashboardVendeur',
     'dashboardAdmin',
-    'orders',
-    'products',
-    'reviews',
     'shops',
+    'produits',
+    'commandes',
+    'comptes',
+    'avis',
+    'utilisateurs',
 
 ]
 
@@ -131,4 +132,4 @@ REST_FRAMEWORK = {
     ),
 
 }
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'comptes.Utilisateurs'

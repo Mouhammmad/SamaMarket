@@ -1,30 +1,21 @@
 from django.db import models
+from django.conf import settings
 
 # Create your models here.
-from accounts.models import User
+
 
 
 class Boutique(models.Model):
-
-    owner = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='boutique'
-    )
-
-    nom = models.CharField(max_length=100)
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                 related_name='boutique')
+    nom = models.CharField(max_length=255,
+                           default='')
     description = models.TextField()
-    city = models.CharField(max_length=100)
-
-    followers = models.ManyToManyField(
-        User,
-        blank=True,
-        related_name='following'
-    )
-
-    verified = models.BooleanField(default=False)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.nom
+    ville = models.CharField(max_length=255,
+                            default='')
+    logo = models.ImageField(upload_to='boutique_logos/',
+                           default='default_logo.png')
+    rating = models.FloatField(default=0)
+    followers = models.IntegerField(default=0)
+    sales = models.IntegerField(default=0)
+    

@@ -8,7 +8,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('products', '0002_rename_name_category_nom_and_more'),
         ('shops', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

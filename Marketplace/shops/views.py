@@ -1,23 +1,31 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Boutique
+from .serializers import BoutiqueSerializer
+from rest_framework import generics
+
+# une vue pour récupérer la liste de toutes les boutiques
+class BoutiqueView(generics.ListAPIView):
+    queryset = Boutique.objects.all()
+    serializer_class = BoutiqueSerializer
+
+# une vue pour récupérer les détails d'une boutique spécifique
 
 
-class ShopListView(APIView):
+class BoutiqueDetailView(generics.RetrieveAPIView):
+    queryset = Boutique.objects.all()
+    serializer_class = BoutiqueSerializer
 
-    def get(self, request):
+# une vue pour récupérer les produits d'une boutique spécifique
+class BoutiqueProduitsView(generics.ListAPIView):
+    serializer_class = ProduitSerializer
 
-        boutiques = Boutique.objects.all()
+    def get_queryset(self):
+        return Produit.objects.filter(boutique_id=self.kwargs['pk'])
 
-        data = []
+# une vue pour récupérer les avis d'une boutique spécifique
+class BoutiqueAvisView(generics.ListAPIView):
+    serializer_class = AvisSerializer
 
-        for boutique in boutiques:
-            data.append({
-                "id": boutique.id,
-                "name": boutique.nom,
-                "description": boutique.description,
-                "city": boutique.city,
-                "verified": boutique.verified
-            })
-
-        return Response(data)
+    def get_queryset(self):
+        return Avis.objects.filter(boutique_id=self.kwargs['pk'])
