@@ -34,6 +34,7 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -60,10 +61,11 @@ ROOT_URLCONF = 'monprojet.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -121,3 +123,20 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# settings.py
+
+UNFOLD = {
+    # ... vos autres configurations ...
+    "COLORS": {
+        "primary": {
+            "50": "255 247 237",   # orange-50 (format RGB sans virgules pour Tailwind)
+            "100": "254 215 170", # orange-200
+            "500": "249 115 22",  # orange-500 (Couleur principale de l'interface)
+            "600": "234 88 12",   # orange-600 (Couleur au survol/hover)
+            "700": "194 65 12",   # orange-700
+            "900": "124 45 18",   # orange-900
+        },
+    },
+}
