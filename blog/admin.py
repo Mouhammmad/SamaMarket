@@ -1,10 +1,24 @@
 from django.contrib import admin
+from django.apps import apps
+from django.contrib.auth.apps import AuthConfig
 from .models import Categorie, Produit, Commande, LigneCommande
 
-# Register your models here.
+# Changer le nom de l'application 
+AuthConfig.verbose_name = "Gestion des accès"
+# Changer le nom des modèles internes (Groupes et Utilisateurs)
+apps.get_model('auth','Group')._meta.verbose_name= 'Groupe de rôle'
+apps.get_model('auth','Group')._meta.verbose_name_plural= 'Groupe des rôles'
+apps.get_model('auth','User')._meta.verbose_name= 'Compte utilisateur'
+apps.get_model('auth','User')._meta.verbose_name_plural= 'Comptes utilisateurs'
+# Pour  personnaliser l'affichage d'un modèle
+admin.site.site_header = "Mon Administration E-Commerce"
+admin.site.site_title = "E-commerce Admin"
+admin.site.index_title = "Bienvenue sur la  gestion de votre boutique SamaMarket"
+
 
 admin.site.register(Categorie)
 admin.site.register(LigneCommande)
+
 
 @admin.register(Produit)
 class ProduitAdmin(admin.ModelAdmin):
@@ -36,7 +50,7 @@ class CommandeAdmin(admin.ModelAdmin):
     list_editable = ['statut'] # Pour changer le statut en un clic !
     inlines =[LigneCommandeInline]
 
-    #C'est ici que la suite logique s'exécute automatiquement
+    #L'affichage de la page commande
     def save_model(self,request,obj, form, change):
         if obj.statut in ['Payée', 'Livrée']:
             obj.paye = True #met la coche bleue automatiquement

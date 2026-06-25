@@ -4,13 +4,6 @@ from django.contrib.auth.models import User
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-# Create your models here.
-class Post(models.Model):
-    titre =models.CharField(max_length=200)
-    contenu = models.TextField()
-
-def __str__(self):
-    return self.nom
 
 class Categorie(models.Model):
     nom=models.CharField(max_length=100)
@@ -52,10 +45,10 @@ class Commande(models.Model):
     #L'utilisateur "User" de django sert ici de client
     client= models.ForeignKey(User, on_delete=models.CASCADE ,related_name='commandes')
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='En attente' )
-    adresse = models.CharField(max_length=255)
+    adresse = models.CharField(max_length=255, blank=True, null=True)
     cree_le = models.DateTimeField(auto_now_add=True)
     paye = models.BooleanField(default=False)
-    total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    total = models.DecimalField(max_digits=10, decimal_places=0, default=0.00)
 
 
     def __str__(self):
@@ -66,7 +59,7 @@ class LigneCommande(models.Model):
     commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name='lignes')
     produit = models.ForeignKey(Produit, on_delete=models.CASCADE)
     quantite = models.PositiveIntegerField(default=1)
-    prix_unitaire = models.DecimalField(max_digits=10,decimal_places=2)
+    prix_unitaire = models.DecimalField(max_digits=10,decimal_places=0)
 
     def __str__(self):
         return f"{self.quantite} * {self.produit.nom}"

@@ -125,8 +125,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# settings.py
-
+# Le theme appliquer à mon interface d'administration
 UNFOLD = {
     # ... vos autres configurations ...
     "COLORS": {
@@ -140,3 +139,7 @@ UNFOLD = {
         },
     },
 }
+# Modifier la langue par défaut pour le français
+LANGUAGE_CODE = 'fr-fr'
+# Pour assurer l'internalisation est bien activé 
+USE_I18N = True

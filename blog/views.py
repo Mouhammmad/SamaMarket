@@ -1,5 +1,4 @@
 from django.shortcuts import render
-
 from rest_framework import viewsets
 from .models import Categorie, Produit, Commande
 from .serializers import CategorieSerializer, ProduitSerializer, CommandeSerializer
