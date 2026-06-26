@@ -15,8 +15,26 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(['GET'])
+def accueil(request):
+    return Response({
+        'message': 'Bienvenue sur l\'API Sama Market',
+        'version': '1.0',
+        'endpoints': {
+            'token': '/api/token/',
+            'panier': '/api/panier/',
+        }
+    })
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', accueil),
+    path('api/', include('commandes.urls')),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
