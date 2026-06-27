@@ -20,6 +20,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from django.contrib import admin
+from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
 @api_view(['GET'])
 def accueil(request):
     return Response({
@@ -28,6 +34,9 @@ def accueil(request):
         'endpoints': {
             'token': '/api/token/',
             'panier': '/api/panier/',
+            'commandes': '/api/commandes/',
+            'livraisons': '/api/livraisons/',
+            'profil': '/api/profil/',
         }
     })
 
@@ -35,6 +44,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', accueil),
     path('api/', include('commandes.urls')),
+    path('api/', include('accounts.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/', include('catalogue.urls')),
 ]
