@@ -3,14 +3,14 @@ from django.apps import apps
 from django.contrib.auth.apps import AuthConfig
 from .models import Categorie, Produit, Commande, LigneCommande
 
-# Changer le nom de l'application 
+# Gestions des noms de l'application 
 AuthConfig.verbose_name = "Gestion des accès"
 # Changer le nom des modèles internes (Groupes et Utilisateurs)
 apps.get_model('auth','Group')._meta.verbose_name= 'Groupe de rôle'
 apps.get_model('auth','Group')._meta.verbose_name_plural= 'Groupe des rôles'
 apps.get_model('auth','User')._meta.verbose_name= 'Compte utilisateur'
 apps.get_model('auth','User')._meta.verbose_name_plural= 'Comptes utilisateurs'
-# Pour  personnaliser l'affichage d'un modèle
+# Pour  personnaliser l'affichage d'un modèle  
 admin.site.site_header = "Mon Administration E-Commerce"
 admin.site.site_title = "E-commerce Admin"
 admin.site.index_title = "Bienvenue sur la  gestion de votre boutique SamaMarket"
@@ -24,11 +24,11 @@ admin.site.register(LigneCommande)
 class ProduitAdmin(admin.ModelAdmin):
     list_display = ['nom','categorie', 'prix','stock', 'disponible']
     #permet de modifier le stock et le statut en un clic
-    list_editable = ['stock' ]
+    list_editable = ['stock']
     search_fields = ['nom']
     list_filter = ['categorie', 'disponible']
     
-     # Gère la page détaillée de modification du produit
+     # Automatisation de la disponibilité selon le stock
     def save_model(self, request, obj, form, change):
         if obj.stock == 0:
             obj.disponible = False
@@ -41,16 +41,17 @@ class LigneCommandeInline(admin.TabularInline):
     extra = 0
     fields = ['produit','prix_unitaire','quantite']
 
+# Enregistrement et configuration globale de commande
 @admin.register(Commande)
 class CommandeAdmin(admin.ModelAdmin):
     #liste des colonnes visibles directement dans le tableau
     list_display = ['id','obtenir_client','statut', 'total','paye','cree_le']
     #Permet de filtrer par statut et date
     list_filter = ['statut','paye','cree_le']
-    list_editable = ['statut'] # Pour changer le statut en un clic !
+    list_editable = ['statut'] # Pour changer le stat ut en un clic !
     inlines =[LigneCommandeInline]
 
-    #L'affichage de la page commande
+    # Gestion automatique de l'etat de paiement
     def save_model(self,request,obj, form, change):
         if obj.statut in ['Payée', 'Livrée']:
             obj.paye = True #met la coche bleue automatiquement
@@ -69,7 +70,7 @@ class CommandeAdmin(admin.ModelAdmin):
         commande.total = total_commande
         commande.save()
 
-    #Fonction pour afficher le nom de l'utilisateur dans le tableau
+    #Affichage personnalisé du client 
     def obtenir_client(self,obj):
        return obj.client.username
     obtenir_client.short_description = 'Client'

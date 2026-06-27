@@ -3,7 +3,6 @@ from rest_framework import viewsets
 from .models import Categorie, Produit, Commande
 from .serializers import CategorieSerializer, ProduitSerializer, CommandeSerializer
 
-
 def home(request):
     return render(request, 'blog/home.html')
 
