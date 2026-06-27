@@ -1,9 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PanierViewSet
+from .views import PanierViewSet, CommandeViewSet
 
 router = DefaultRouter()
 router.register(r'panier', PanierViewSet, basename='panier')
+router.register(r'commandes', CommandeViewSet, basename='commandes')
 
 urlpatterns = [
     path('', include(router.urls)),

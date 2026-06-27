@@ -35,3 +35,37 @@ class PanierSerializer(serializers.ModelSerializer):
 
     def get_total(self, obj):
         return obj.obtenir_total()
+
+from .models import Commande, LigneCommande, Paiement
+
+class LigneCommandeSerializer(serializers.ModelSerializer):
+    produit = ProduitResumSerializer(read_only=True)
+    sous_total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LigneCommande
+        fields = ['id', 'produit', 'quantite', 'prix_unitaire', 'sous_total']
+
+    def get_sous_total(self, obj):
+        return obj.calculer_sous_total()
+
+
+class CommandeSerializer(serializers.ModelSerializer):
+    lignes = LigneCommandeSerializer(many=True, read_only=True)
+    paiement = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Commande
+        fields = ['id', 'statut', 'montant_total', 'adresse_livraison', 'notes', 'lignes', 'paiement', 'date_creation']
+
+    def get_paiement(self, obj):
+        try:
+            return PaiementSerializer(obj.paiement).data
+        except:
+            return None
+
+
+class PaiementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Paiement
+        fields = ['id', 'montant', 'methode', 'statut', 'id_transaction', 'date_creation']
