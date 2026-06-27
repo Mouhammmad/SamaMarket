@@ -3,8 +3,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.permissions import IsAuthenticated
-from .models import Panier, ArticlePanier
-from .serializers import PanierSerializer, ArticlePanierSerializer
+from django.utils import timezone
+import uuid
+from .models import Panier, ArticlePanier, Commande, LigneCommande, Paiement, Livraison
+from .serializers import (
+    PanierSerializer, ArticlePanierSerializer,
+    CommandeSerializer, PaiementSerializer, LivraisonSerializer
+)
+
 
 class PanierViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
@@ -70,9 +76,7 @@ class PanierViewSet(GenericViewSet):
         panier = self.get_panier(request)
         panier.articles.all().delete()
         return Response({'message': 'Panier vidé'})
-    
-from .models import Commande, LigneCommande, Paiement
-from .serializers import CommandeSerializer, PaiementSerializer
+
 
 class CommandeViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
@@ -95,28 +99,163 @@ class CommandeViewSet(GenericViewSet):
         if methode not in ['wave', 'orange_money']:
             return Response({'erreur': 'Méthode de paiement invalide'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Créer la commande
         commande = Commande.objects.create(
             utilisateur=request.user,
             adresse_livraison=adresse,
             montant_total=panier.obtenir_total()
         )
 
-        # Copier les articles du panier en lignes de commande
         for article in panier.articles.all():
             LigneCommande.objects.create(
                 commande=commande,
                 produit=article.produit,
                 quantite=article.quantite,
-                prix_unitaire=article.produit.prix  # Prix figé ici
+                prix_unitaire=article.produit.prix
             )
 
-        # Créer le paiement
         paiement = Paiement.objects.create(
             commande=commande,
             montant=commande.montant_total,
             methode=methode,
         )
 
-        # Vider le panier après commande
         panier.articles.all().delete()
+
+        return Response({
+            'message': 'Commande créée avec succès',
+            'commande': CommandeSerializer(commande).data
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def confirmer_paiement(self, request, pk=None):
+        try:
+            commande = Commande.objects.get(id=pk, utilisateur=request.user)
+            paiement = commande.paiement
+            id_transaction = request.data.get('id_transaction')
+
+            if not id_transaction:
+                return Response({'erreur': 'ID transaction requis'}, status=status.HTTP_400_BAD_REQUEST)
+
+            paiement.id_transaction = id_transaction
+            paiement.statut = 'complete'
+            paiement.save()
+
+            commande.statut = 'confirme'
+            commande.save()
+
+            return Response({
+                'message': 'Paiement confirmé',
+                'commande': CommandeSerializer(commande).data
+            })
+        except Commande.DoesNotExist:
+            return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def mes_commandes(self, request):
+        commandes = self.get_queryset()
+        serializer = CommandeSerializer(commandes, many=True)
+        return Response(serializer.data)
+
+
+class LivraisonViewSet(GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def creer(self, request):
+        commande_id = request.data.get('commande_id')
+        try:
+            commande = Commande.objects.get(id=commande_id, utilisateur=request.user)
+            if commande.statut != 'confirme':
+                return Response({'erreur': 'La commande doit être confirmée'}, status=status.HTTP_400_BAD_REQUEST)
+            if hasattr(commande, 'livraison'):
+                return Response({'erreur': 'Une livraison existe déjà pour cette commande'}, status=status.HTTP_400_BAD_REQUEST)
+
+            livraison = Livraison.objects.create(
+                commande=commande,
+                adresse=commande.adresse_livraison,
+                numero_suivi=str(uuid.uuid4())[:12].upper(),
+                date_prevue=request.data.get('date_prevue')
+            )
+            commande.statut = 'expedie'
+            commande.save()
+
+            return Response(LivraisonSerializer(livraison).data, status=status.HTTP_201_CREATED)
+        except Commande.DoesNotExist:
+            return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def suivre(self, request):
+        numero_suivi = request.query_params.get('numero_suivi')
+        try:
+            livraison = Livraison.objects.get(numero_suivi=numero_suivi)
+            return Response(LivraisonSerializer(livraison).data)
+        except Livraison.DoesNotExist:
+            return Response({'erreur': 'Livraison introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['patch'])
+    def mettre_a_jour_statut(self, request, pk=None):
+        try:
+            livraison = Livraison.objects.get(id=pk)
+            nouveau_statut = request.data.get('statut')
+            if nouveau_statut not in dict(Livraison.STATUT_CHOICES):
+                return Response({'erreur': 'Statut invalide'}, status=status.HTTP_400_BAD_REQUEST)
+
+            livraison.statut = nouveau_statut
+            if nouveau_statut == 'livre':
+                livraison.date_livraison = timezone.now()
+                livraison.commande.statut = 'livre'
+                livraison.commande.save()
+            livraison.save()
+
+            return Response(LivraisonSerializer(livraison).data)
+        except Livraison.DoesNotExist:
+            return Response({'erreur': 'Livraison introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CommandeVendeurViewSet(GenericViewSet):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Commande.objects.filter(
+            lignes__produit__boutique__gestionnaire=self.request.user
+        ).distinct()
+
+    @action(detail=False, methods=['get'])
+    def mes_commandes(self, request):
+        if request.user.role != 'gestionnaire':
+            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        commandes = self.get_queryset()
+        serializer = CommandeSerializer(commandes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def mettre_a_jour_statut(self, request, pk=None):
+        if request.user.role != 'gestionnaire':
+            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            commande = Commande.objects.get(
+                id=pk,
+                lignes__produit__boutique__gestionnaire=request.user
+            )
+            nouveau_statut = request.data.get('statut')
+            if nouveau_statut not in dict(Commande.STATUT_CHOICES):
+                return Response({'erreur': 'Statut invalide'}, status=status.HTTP_400_BAD_REQUEST)
+
+            commande.statut = nouveau_statut
+            commande.save()
+            return Response(CommandeSerializer(commande).data)
+        except Commande.DoesNotExist:
+            return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'])
+    def detail_commande(self, request, pk=None):
+        if request.user.role != 'gestionnaire':
+            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            commande = Commande.objects.get(
+                id=pk,
+                lignes__produit__boutique__gestionnaire=request.user
+            )
+            return Response(CommandeSerializer(commande).data)
+        except Commande.DoesNotExist:
+            return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)

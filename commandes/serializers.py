@@ -69,3 +69,10 @@ class PaiementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paiement
         fields = ['id', 'montant', 'methode', 'statut', 'id_transaction', 'date_creation']
+
+from .models import Livraison
+
+class LivraisonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Livraison
+        fields = ['id', 'adresse', 'statut', 'numero_suivi', 'date_prevue', 'date_livraison']
