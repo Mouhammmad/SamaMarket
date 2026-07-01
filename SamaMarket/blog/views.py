@@ -1,7 +1,9 @@
 from django.shortcuts import render
+
 from rest_framework import viewsets
-from .models import Categorie, Produit, Commande, LigneCommande
-from .serializers import CategorieSerializer, ProduitSerializer, CommandeSerializer, LigneCommandeSerializer
+from .models import Categorie, Produit, Commande
+from .serializers import CategorieSerializer, ProduitSerializer, CommandeSerializer
+
 
 def home(request):
     return render(request, 'blog/home.html')
@@ -24,15 +26,6 @@ class ProduitViewSet(viewsets.ModelViewSet):
 class CommandeViewSet(viewsets.ModelViewSet):
     queryset = Commande.objects.all()
     serializer_class = CommandeSerializer
-
-class LigneCommandeViewSet(viewsets.ModelViewSet):
-    queryset = LigneCommande.objects.all()
-    serializer_class = LigneCommandeSerializer
-
-    def perform_create(self, serializer):
-        from .models import Commande
-        derniere_commande = Commande.objects.last()
-        serializer.save(commande = derniere_commande)
 
 
 

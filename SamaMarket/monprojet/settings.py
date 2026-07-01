@@ -43,10 +43,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'blog',
     'rest_framework',
-    'Categorie',
-    'Produit',
-    'Commande',
-    'LigneCommande',
 
 ]
 
@@ -90,12 +86,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTIFICATION_CLASSES': [],
-    'DEFAULT_PERMISSION_CLASSES': [
-    'rest_framework.permissions.AllowAny',
-    ],
-}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -119,7 +110,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'fr-fr'
+LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
@@ -134,7 +125,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Le theme appliquer à mon interface d'administration
+# settings.py
+
 UNFOLD = {
     # ... vos autres configurations ...
     "COLORS": {
@@ -148,4 +140,3 @@ UNFOLD = {
         },
     },
 }
-

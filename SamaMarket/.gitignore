@@ -1,0 +1,7 @@
+mon_projet_django/  <-- C'EST ICI (Racine du projet)
+│
+├── .gitignore      <-- Votre fichier à créer ici
+├── manage.py
+├── db.sqlite3
+├── venv/           <-- Votre environnement virtuel (si présent)
+└── mon_projet/     <-- Dossier contenant settings.py, urls.py...
