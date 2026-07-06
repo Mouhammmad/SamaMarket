@@ -1,0 +1,155 @@
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.left-panel {
+  background-color: #1a2e4a;
+  color: white;
+  width: 40%;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.brand {
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+
+.brand-sama { color: white; }
+.brand-market { color: #f97316; margin-left: 6px; }
+
+.left-content h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 12px 0;
+  line-height: 1.3;
+}
+
+.bienvenue {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.description {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-bottom: 20px;
+}
+
+.avantages {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.avantages li {
+  background: rgba(255,255,255,0.1);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.slogan {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px;
+}
+
+.right-panel h2 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.sous-titre {
+  color: #888;
+  margin-bottom: 30px;
+  font-size: 0.9rem;
+}
+
+.erreur-msg {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.champ {
+  margin-bottom: 20px;
+}
+
+.champ label {
+  display: block;
+  font-size: 0.85rem;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+.champ input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border 0.2s;
+}
+
+.champ input:focus {
+  border-color: #f97316;
+}
+
+.btn-connexion {
+  width: 100%;
+  padding: 14px;
+  background-color: #f97316;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.btn-connexion:hover {
+  background-color: #ea6c0a;
+}
+
+.btn-connexion:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lien-register {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.lien-register a {
+  color: #f97316;
+  text-decoration: none;
+  font-weight: bold;
+}

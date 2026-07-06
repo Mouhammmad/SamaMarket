@@ -1,0 +1,59 @@
+<div class="login-page">
+  <div class="left-panel">
+    <div class="brand">
+      <span class="brand-sama">SAMA</span>
+      <span class="brand-market">MARKET</span>
+    </div>
+    <div class="left-content">
+      <p class="bienvenue">Bienvenue sur</p>
+      <h1>la marketplace<br>locale du Sénégal</h1>
+      <p class="description">Des milliers de produits locaux livrés directement chez toi.</p>
+      <ul class="avantages">
+        <li>✓ Paiement Wave & Orange Money</li>
+        <li>✓ Vendeurs vérifiés locaux</li>
+        <li>✓ Livraison rapide</li>
+      </ul>
+    </div>
+    <p class="slogan">"Achète local, soutiens ta communauté"</p>
+  </div>
+
+  <div class="right-panel">
+    <h2>Connexion</h2>
+    <p class="sous-titre">Heureux de te revoir !</p>
+
+    <div *ngIf="erreur" class="erreur-msg">{{ erreur }}</div>
+
+    <form (ngSubmit)="onSubmit()">
+      <div class="champ">
+        <label>Adresse email ou username</label>
+        <input
+          type="text"
+          [(ngModel)]="username"
+          name="username"
+          placeholder="exemple@email.com"
+          required
+        />
+      </div>
+
+      <div class="champ">
+        <label>Mot de passe</label>
+        <input
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          placeholder="••••••••••"
+          required
+        />
+      </div>
+
+      <button type="submit" [disabled]="chargement" class="btn-connexion">
+        {{ chargement ? 'Connexion...' : 'Se connecter' }}
+      </button>
+    </form>
+
+    <p class="lien-register">
+      Pas encore de compte ?
+      <a routerLink="/register">S'inscrire →</a>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,81 @@
+<div class="register-page">
+  <div class="left-panel">
+    <div class="brand">
+      <span class="brand-sama">SAMA</span>
+      <span class="brand-market">MARKET</span>
+    </div>
+    <div class="left-content">
+      <p class="bienvenue">Rejoins la communauté</p>
+      <h1>des acheteurs<br>locaux</h1>
+      <p class="description">Crée ton compte gratuitement et accède à des milliers de produits locaux.</p>
+      <div class="role-section">
+        <p class="role-label">Ton rôle :</p>
+        <div class="role-buttons">
+          <button
+            [class.active]="role === 'CUSTOMER'"
+            (click)="role = 'CUSTOMER'"
+            type="button">
+            Client
+          </button>
+          <button
+            [class.active]="role === 'VENDOR'"
+            (click)="role = 'VENDOR'"
+            type="button">
+            Vendeur
+          </button>
+        </div>
+        <p class="role-hint">Sélectionne un rôle pour t'inscrire</p>
+      </div>
+    </div>
+    <p class="slogan">"Achète local, soutiens ta communauté"</p>
+  </div>
+
+  <div class="right-panel">
+    <h2>Créer un compte</h2>
+    <p class="sous-titre">Rejoins SAMA MARKET — c'est gratuit !</p>
+
+    <div *ngIf="erreur" class="erreur-msg">{{ erreur }}</div>
+
+    <form (ngSubmit)="onSubmit()">
+      <div class="champ-row">
+        <div class="champ">
+          <label>Prénom</label>
+          <input type="text" [(ngModel)]="prenom" name="prenom" placeholder="Votre prénom" required />
+        </div>
+        <div class="champ">
+          <label>Nom</label>
+          <input type="text" [(ngModel)]="nom" name="nom" placeholder="Votre nom" required />
+        </div>
+      </div>
+
+      <div class="champ">
+        <label>Email</label>
+        <input type="email" [(ngModel)]="email" name="email" placeholder="exemple@email.com" required />
+      </div>
+
+      <div class="champ">
+        <label>Téléphone</label>
+        <input type="text" [(ngModel)]="phone" name="phone" placeholder="+221 7X XXX XX XX" />
+      </div>
+
+      <div class="champ">
+        <label>Mot de passe</label>
+        <input type="password" [(ngModel)]="password" name="password" placeholder="••••••••••" required />
+      </div>
+
+      <div class="champ">
+        <label>Confirmation</label>
+        <input type="password" [(ngModel)]="confirmation" name="confirmation" placeholder="••••••••••" required />
+      </div>
+
+      <button type="submit" [disabled]="chargement" class="btn-register">
+        {{ chargement ? 'Création...' : 'Créer mon compte' }}
+      </button>
+    </form>
+
+    <p class="lien-login">
+      Déjà un compte ?
+      <a routerLink="/login">Se connecter →</a>
+    </p>
+  </div>
+</div>
