@@ -15,6 +15,7 @@ routeur.register(r'ligne',LigneCommandeViewSet )
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(routeur.urls)),
+    path('api/', include('Commande.urls')),
     path('', include('blog.urls')),
 ]
 if settings.DEBUG:

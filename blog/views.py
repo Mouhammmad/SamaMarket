@@ -1,5 +1,8 @@
 from django.shortcuts import render
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 from .models import Categorie, Produit, Commande, LigneCommande
 from .serializers import CategorieSerializer, ProduitSerializer, CommandeSerializer, LigneCommandeSerializer
 
@@ -34,7 +37,20 @@ class LigneCommandeViewSet(viewsets.ModelViewSet):
         derniere_commande = Commande.objects.last()
         serializer.save(commande = derniere_commande)
 
+class AjouterLigneCommandeView(APIView):
+    def post(self, request, pk):
+        #Récupère la commande liée grace au pk de l'url
+        commande = get_object_or_404(commande, id=pk)
 
+        # Passe les données reçues au serialiseur
+        serializer = LigneCommandeSerializer(data=request.data)
+
+        if serializer.is_valid():
+            #Sauvegarde la ligne en lui associant la commande parente
+            serializer.save(commande=commande)
+            return self.response(serializer.data, status=status.HTTP_201_BAD_CREATED)
+        
+        return Response(serializer.errors, status= status.HTTP_404_BAD_REQUEST)
 
 
    
