@@ -14,6 +14,7 @@ from .serializers import (
 
 class PanierViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = ArticlePanierSerializer
 
     def get_panier(self, request):
         panier, created = Panier.objects.get_or_create(utilisateur=request.user)
@@ -80,6 +81,7 @@ class PanierViewSet(GenericViewSet):
 
 class CommandeViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = CommandeSerializer
 
     def get_queryset(self):
         return Commande.objects.filter(utilisateur=self.request.user)
@@ -159,6 +161,7 @@ class CommandeViewSet(GenericViewSet):
 
 class LivraisonViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = LivraisonSerializer
 
     @action(detail=False, methods=['post'])
     def creer(self, request):
@@ -214,6 +217,7 @@ class LivraisonViewSet(GenericViewSet):
 
 class CommandeVendeurViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = CommandeSerializer
 
     def get_queryset(self):
         return Commande.objects.filter(

@@ -69,6 +69,7 @@ class PaiementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paiement
         fields = ['id', 'montant', 'methode', 'statut', 'id_transaction', 'date_creation']
+        read_only_fields = ['montant', 'statut', 'date_creation'] 
 
 from .models import Livraison
 

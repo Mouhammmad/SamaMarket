@@ -1,17 +1,21 @@
-from django.shortcuts import render
-
-# Create your views here.
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.permissions import IsAuthenticated
-from .models import Favori, Avis, Promotion
-from .serializers import FavoriSerializer, AvisSerializer, PromotionSerializer
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .models import Favori, Avis, Promotion, Produit
+from .serializers import FavoriSerializer, AvisSerializer, PromotionSerializer, ProduitResumSerializer
+
+
+class ProduitViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Produit.objects.filter(est_actif=True)
+    serializer_class = ProduitResumSerializer
+    permission_classes = [AllowAny]
 
 
 class FavoriViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = FavoriSerializer
 
     def get_queryset(self):
         return Favori.objects.filter(utilisateur=self.request.user)
@@ -27,10 +31,7 @@ class FavoriViewSet(GenericViewSet):
         serializer = FavoriSerializer(data=request.data)
         if serializer.is_valid():
             produit = serializer.validated_data['produit']
-            favori, created = Favori.objects.get_or_create(
-                utilisateur=request.user,
-                produit=produit
-            )
+            favori, created = Favori.objects.get_or_create(utilisateur=request.user, produit=produit)
             if not created:
                 return Response({'message': 'Déjà dans les favoris'}, status=status.HTTP_200_OK)
             return Response(FavoriSerializer(favori).data, status=status.HTTP_201_CREATED)
@@ -48,6 +49,7 @@ class FavoriViewSet(GenericViewSet):
 
 class AvisViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = AvisSerializer
 
     @action(detail=False, methods=['post'])
     def ajouter(self, request):
@@ -79,6 +81,7 @@ class AvisViewSet(GenericViewSet):
 
 class PromotionViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = PromotionSerializer
 
     @action(detail=False, methods=['post'])
     def appliquer(self, request):

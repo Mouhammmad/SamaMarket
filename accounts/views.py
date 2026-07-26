@@ -13,6 +13,7 @@ Utilisateur = get_user_model()
 
 class ProfilViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = ProfilSerializer
 
     @action(detail=False, methods=['get'])
     def mon_profil(self, request):
