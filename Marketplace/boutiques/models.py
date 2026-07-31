@@ -12,6 +12,10 @@ class Boutique(models.Model):
     followers = models.IntegerField(default=0)
     ventes = models.IntegerField(default=0)
     apprové = models.BooleanField(default=False)
-
+    banniere = models.ImageField(
+    upload_to='boutiques/bannieres/',
+    blank=True,
+    null=True
+)
     def __str__(self):
         return self.nom

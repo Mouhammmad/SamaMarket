@@ -6,25 +6,55 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
-from .models import Favori, Avis, Promotion, Produit, Categorie
+from .models import Favori, Avis, Promotion, Produit, Categorie, ProduitImage, ProduitVariante
 from .serializers import FavoriSerializer, AvisSerializer, PromotionSerializer, ProduitSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from boutiques.models import Boutique
 from .serializers import ProduitCreateSerializer
+import django_filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from .serializers import ProduitVarianteSerializer
+
+class ProduitFilter(django_filters.FilterSet):
+    """Filtres avancés pour les produits"""
+    prix_min = django_filters.NumberFilter(
+        field_name='prix', 
+        lookup_expr='gte',
+        label='Prix minimum'
+    )
+    prix_max = django_filters.NumberFilter(
+        field_name='prix', 
+        lookup_expr='lte',
+        label='Prix maximum'
+    )
+    categorie = django_filters.CharFilter(
+        field_name='categorie__nom',
+        lookup_expr='icontains',
+        label='Catégorie'
+    )
+    boutique = django_filters.CharFilter(
+        field_name='boutique__nom',
+        lookup_expr='icontains',
+        label='Boutique'
+    )
+    
+    class Meta:
+        model = Produit
+        fields = ['categorie', 'boutique', 'prix_min', 'prix_max']
+
 
 class VueListeProduits(ListAPIView):
     serializer_class = ProduitSerializer
     permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProduitFilter
+    search_fields = ['nom', 'description', 'categorie__nom']
+    ordering_fields = ['prix', 'date_creation', 'nom']
+    ordering = ['-date_creation']
 
     def get_queryset(self):
-        queryset = Produit.objects.filter(est_actif=True).order_by('-date_creation')
-
-        recherche = self.request.query_params.get('search')
-
-        if recherche:
-            queryset = queryset.filter(nom__icontains=recherche)
-
-        return queryset
+        return Produit.objects.filter(est_actif=True).select_related('categorie', 'boutique')
 
 class VueListeCategories(ListAPIView):
     queryset = Categorie.objects.all()
@@ -112,55 +142,75 @@ class AvisViewSet(GenericViewSet):
             return Response({'erreur': 'Avis introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
 
-class PromotionViewSet(GenericViewSet):
-    permission_classes = [AllowAny]
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
 
-    def get_queryset(self):
-        today = timezone.now().date()
-        return Promotion.objects.filter(
-            est_active=True,
-            date_debut__lte=today,
-            date_fin__gte=today
-        )
-
-    def list(self, request):
-        promotions = self.get_queryset()
-        serializer = PromotionSerializer(promotions, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['post'])
-    def appliquer(self, request):
-        code = request.data.get('code')
-        try:
-            promotion = Promotion.objects.get(code=code)
-            if not promotion.est_valide():
-                return Response({'erreur': 'Code promo invalide ou expiré'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response(PromotionSerializer(promotion).data)
-        except Promotion.DoesNotExist:
-            return Response({'erreur': 'Code promo introuvable'}, status=status.HTTP_404_NOT_FOUND)
-
-class ProduitViewSet(ModelViewSet):
-    serializer_class = ProduitSerializer
+class PromotionViewSet(ModelViewSet):
+    serializer_class = PromotionSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Produit.objects.filter(
-            boutique__responsable=self.request.user
-        ).order_by('-date_creation')
+        try:
+            boutique = self.request.user.boutique
+        except Boutique.DoesNotExist:
+            raise ValidationError(
+                {"detail": "Aucune boutique associée."}
+            )
+
+        return Promotion.objects.filter(
+            boutique=boutique
+        ).prefetch_related("produits")
 
     def perform_create(self, serializer):
-        boutique = Boutique.objects.get(
-            responsable=self.request.user
-        )
+        try:
+            boutique = self.request.user.boutique
+        except Boutique.DoesNotExist:
+            raise ValidationError(
+                {"detail": "Aucune boutique associée."}
+            )
+
+        serializer.save(boutique=boutique)
+
+class ProduitViewSet(ModelViewSet):
+    """ViewSet public pour consulter les produits"""
+    serializer_class = ProduitSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProduitFilter
+    search_fields = ['nom', 'description', 'categorie__nom']
+    ordering_fields = ['prix', 'date_creation', 'nom']
+    ordering = ['-date_creation']
+
+    def get_queryset(self):
+        return Produit.objects.filter(est_actif=True).select_related('categorie', 'boutique')
+
+    def list(self, request, *args, **kwargs):
+        """Retourne les produits avec pagination et filtres"""
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        """Retourne les détails d'un produit"""
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+
+        boutique = self.request.user.boutique
 
         serializer.save(
-    boutique=boutique,
-    est_actif=True
-)
+
+        boutique=boutique
+
+        )
+
 class VendeurProduitViewSet(ModelViewSet):
     serializer_class = ProduitSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['categorie']
+    search_fields = ['nom', 'description']
+    ordering_fields = ['prix', 'date_creation', 'nom']
+    ordering = ['-date_creation']
 
     def get_boutique(self):
         try:
@@ -187,12 +237,60 @@ class VendeurProduitViewSet(ModelViewSet):
         boutique = self.get_boutique()
         return Produit.objects.filter(
             boutique=boutique
-        ).order_by('-date_creation')
+        ).select_related('categorie', 'boutique').order_by('-date_creation')
 
     def perform_create(self, serializer):
+
         boutique = self.get_boutique()
-        serializer.save(boutique=boutique)
+
+        produit = serializer.save(
+        boutique=boutique
+        )
+
+        images = self.request.FILES.getlist("images")
+
+        if images:
+
+            for index, image in enumerate(images):
+
+                ProduitImage.objects.create(
+                    produit=produit,
+                    image=image,
+                    ordre=index
+                )
+
+        elif self.request.FILES.get("image"):
+
+            ProduitImage.objects.create(
+            produit=produit,
+            image=self.request.FILES["image"],
+            ordre=0
+        )
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return ProduitCreateSerializer
         return ProduitSerializer
+class ProduitVarianteViewSet(ModelViewSet):
+
+    serializer_class = ProduitVarianteSerializer
+
+    permission_classes = [IsAuthenticated]
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+
+        return ProduitVariante.objects.filter(
+            produit__boutique=self.get_boutique()
+        )
+
+    def get_boutique(self):
+
+        try:
+            return self.request.user.boutique
+
+        except Boutique.DoesNotExist:
+
+            raise ValidationError(
+                {"detail": "Aucune boutique."}
+            )

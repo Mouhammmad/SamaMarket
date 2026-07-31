@@ -7,7 +7,8 @@ from .views import (
     FavoriViewSet,
     AvisViewSet,
     PromotionViewSet,
-    ProduitViewSet
+    ProduitViewSet,
+    ProduitVarianteViewSet
 )
 from .views import VendeurProduitViewSet
 
@@ -21,6 +22,16 @@ router.register(
     r'vendeur/produits',
     VendeurProduitViewSet,
     basename='vendeur-produits'
+)
+router.register(
+    "vendeur/variantes",
+    ProduitVarianteViewSet,
+    basename="vendeur-variantes"
+)
+router.register(
+    "vendeur/promotions",
+    PromotionViewSet,
+    basename="vendeur-promotions"
 )
 urlpatterns = [
     path('', VueListeProduits.as_view()),

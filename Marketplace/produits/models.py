@@ -35,6 +35,7 @@ class Produit(models.Model):
     description = models.TextField(blank=True)
     prix = models.DecimalField(max_digits=10, decimal_places=2)
     quantite_stock = models.PositiveIntegerField(default=0)
+    nombre_vues = models.PositiveIntegerField(default=0)
     image = models.ImageField(upload_to='produits/', blank=True, null=True)
     est_actif = models.BooleanField(default=True)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -121,3 +122,55 @@ class Promotion(models.Model):
             self.date_debut <= aujourd_hui <= self.date_fin and
             (self.limite_usage == 0 or self.nombre_utilise < self.limite_usage)
         )
+
+class ProduitImage(models.Model):
+    produit = models.ForeignKey(
+        Produit,
+        related_name="images",
+        on_delete=models.CASCADE
+    )
+
+    image = models.ImageField(
+        upload_to="produits/"
+    )
+
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre"]
+
+    def __str__(self):
+        return f"{self.produit.nom} - {self.id}"
+
+class ProduitVariante(models.Model):
+    produit = models.ForeignKey(
+        Produit,
+        related_name="variantes",
+        on_delete=models.CASCADE
+    )
+
+    nom = models.CharField(max_length=100)
+    valeur = models.CharField(max_length=100)
+
+    prix = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    quantite_stock = models.PositiveIntegerField(default=0)
+
+    image = models.ImageField(
+        upload_to="variantes/",
+        blank=True,
+        null=True
+    )
+
+    sku = models.CharField(
+        max_length=80,
+        blank=True
+    )
+
+    est_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.produit.nom} - {self.nom}: {self.valeur}"

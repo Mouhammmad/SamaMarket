@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'django_filters',
     'comptes',
     'dashboardVendeur',
     'dashboardAdmin',
@@ -58,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'Marketplace.urls'
@@ -134,6 +136,13 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
 }
 AUTH_USER_MODEL = 'comptes.User'
 
@@ -178,9 +187,5 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 # Autoriser les origines pour CSRF lorsque l'API est appelée depuis l'UI (dev)
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:4200',
-    'http://127.0.0.1:4200',
-    'http://localhost:4201',
-    'http://127.0.0.1:4201',
-    'http://localhost:53115',
-    'http://127.0.0.1:53115',
+   
 ]
