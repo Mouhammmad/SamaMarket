@@ -31,7 +31,8 @@ class AllowOptionsPermission(BasePermission):
     """
     Allow OPTIONS requests without authentication for CORS preflight.
     """
-    def has_permission(self, request, view):
+    def has_permission(self, request, _view):
+        assert _view is not None
         logger.debug(f"AllowOptionsPermission check: method={request.method}, user={request.user}, is_auth={request.user.is_authenticated if request.user else 'NO USER'}")
         return request.method == 'OPTIONS' or bool(request.user and request.user.is_authenticated)
 

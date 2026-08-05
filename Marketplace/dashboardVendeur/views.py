@@ -1,19 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from boutiques.models import Boutique
 from commandes.models import Commande, LigneCommande
 from produits.models import Produit
 
 User = get_user_model()
 
 from .serializers import SerializerCommandeVendeur, SerializerProduitVendeur, SerializerProduitCreateVendeur
-from boutiques.serializers import BoutiqueSerializer
 from django.utils import timezone
 from django.db.models import F
 from datetime import date, timedelta
@@ -27,7 +25,6 @@ class VueVendeurBase(APIView):
     def get_date_range(self, period):
         """Retourne (start_date, end_date) basé sur la période"""
         today = timezone.now().date()
-        now = timezone.now()
         
         if period == 'jour':
             start = today

@@ -4,7 +4,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Marketplace.settings')
 django.setup()
 
 from comptes.models import User
-from django.contrib.auth.hashers import make_password
 
 # Créer ou mettre à jour un utilisateur de test
 username = 'vendeur_test'

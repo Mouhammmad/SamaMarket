@@ -4,7 +4,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Marketplace.settings')
 django.setup()
 
 from comptes.models import User
-from boutiques.models import Boutique
 
 vendors = User.objects.filter(role='VENDOR')
 print(f"✅ Vendeurs trouvés: {vendors.count()}")

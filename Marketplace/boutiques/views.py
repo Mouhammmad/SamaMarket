@@ -3,24 +3,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from rest_framework.generics import RetrieveUpdateAPIView
-
 from produits.models import Avis, Produit
 from produits.serializers import AvisSerializer, ProduitSerializer
-from .serializers import BoutiqueCreateSerializer
-
-from .models import Boutique
-from .serializers import BoutiqueSerializer
-
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework.response import Response
-
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-
 from .models import Boutique
 from .serializers import BoutiqueSerializer, BoutiqueCreateSerializer
 
@@ -74,7 +58,8 @@ class VueAvisDeLaBoutique(ListAPIView):
 
 
 class VuePromotionsDeLaBoutique(APIView):
-    def get(self, request, pk):
+    def get(self, _request, pk):
+        assert _request is not None
         return Response(list(Produit.objects.filter(boutique_id=pk).values('id', 'title', 'discount', 'start_date', 'end_date')))
 
 

@@ -24,7 +24,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from comptes.views import LoginView
 
 
-def home(request):
+def home(_request):
+    assert _request is not None
     return JsonResponse({"message": "Bienvenue sur SamaMarket API"})
 
 

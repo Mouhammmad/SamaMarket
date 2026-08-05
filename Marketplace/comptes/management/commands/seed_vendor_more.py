@@ -14,7 +14,9 @@ User = get_user_model()
 class Command(BaseCommand):
     help = 'Ajoute des commandes de démonstration réparties sur les 6 derniers mois pour le vendeur1'
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **_options):
+        assert args is not None
+        assert _options is not None
         vendeur = User.objects.filter(username='vendeur1').first()
         if not vendeur:
             self.stdout.write(self.style.ERROR('vendeur1 introuvable. Exécutez seed_demo_data d\'abord.'))

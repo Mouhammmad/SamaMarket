@@ -11,7 +11,9 @@ User = get_user_model()
 class Command(BaseCommand):
     help = 'Remplit la base de données avec des données de démonstration pour les endpoints vendeur.'
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **_options):
+        assert args is not None
+        assert _options is not None
         vendeur, _ = User.objects.get_or_create(
             username='vendeur1',
             defaults={'email': 'vendeur1@example.com', 'role': 'VENDOR'}
@@ -37,7 +39,7 @@ class Command(BaseCommand):
 
         categorie, _ = Category.objects.get_or_create(nom='Électronique')
 
-        produit, created = Produit.objects.get_or_create(
+        produit, _ = Produit.objects.get_or_create(
             nom='Smartphone Demo',
             defaults={
                 'boutique': boutique,

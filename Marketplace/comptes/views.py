@@ -1,5 +1,3 @@
-from django.shortcuts import render
-
 # Create your views here.
 from rest_framework import status
 from rest_framework.decorators import action
@@ -9,7 +7,6 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from .serializers import ProfilSerializer, ModifierProfilSerializer, ChangerMotDePasseSerializer
 
-Utilisateur = get_user_model()
 User = get_user_model()
 from rest_framework import generics, permissions
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -19,7 +16,8 @@ from django.http import JsonResponse
 from .serializers import RegisterSerializer, UserSerializer
 
 
-def test_account(request):
+def test_account(_request):
+    assert _request is not None
     return JsonResponse({"message": "Accounts OK"})
 
 
@@ -31,7 +29,6 @@ class RegisterView(generics.CreateAPIView):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         username = attrs.get('username')
-        password = attrs.get('password')
 
         if username and '@' in username:
             try:

@@ -21,6 +21,11 @@ class Categorie(models.Model):
 
 
 class Produit(models.Model):
+    ETAT_CHOICES = [
+        ('neuf', 'Neuf'),
+        ('occasion', 'Occasion'),
+    ]
+
     boutique = models.ForeignKey(
         'boutiques.Boutique',
         on_delete=models.CASCADE,
@@ -33,8 +38,17 @@ class Produit(models.Model):
     )
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    marque = models.CharField(max_length=100, blank=True)
+    sku = models.CharField(max_length=100, unique=True, blank=True)
+    slug = models.SlugField(unique=True, blank=True)
+    etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default='neuf')
     prix = models.DecimalField(max_digits=10, decimal_places=2)
     quantite_stock = models.PositiveIntegerField(default=0)
+    poids = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    largeur = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    hauteur = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    longueur = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    mots_cles = models.CharField(max_length=300, blank=True)
     nombre_vues = models.PositiveIntegerField(default=0)
     image = models.ImageField(upload_to='produits/', blank=True, null=True)
     est_actif = models.BooleanField(default=True)

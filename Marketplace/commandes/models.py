@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+import uuid
+
 
 class Panier(models.Model):
     utilisateur = models.OneToOneField(
@@ -53,14 +55,49 @@ class Commande(models.Model):
         related_name='commandes'
     )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
-    montant_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sous_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     adresse_livraison = models.TextField()
     notes = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
+    numero = models.CharField(max_length=30, unique=True, blank=True)
+
+    boutique = models.ForeignKey(
+        'boutiques.Boutique',
+        on_delete=models.CASCADE,
+        related_name='commandes'
+    )
+
+    frais_livraison = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    reduction = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
 
     def __str__(self):
-        return f"Commande #{self.id} - {self.utilisateur.username}"
+        return f"Commande #{self.numero or self.id} - {self.utilisateur.username}"
 
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            self.numero = f"CMD-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+    @property
+    def montant_total(self):
+
+        return (
+
+        self.sous_total
+
+        + self.frais_livraison
+
+        - self.reduction
+
+    )
 
 class LigneCommande(models.Model):
     commande = models.ForeignKey(
@@ -74,13 +111,18 @@ class LigneCommande(models.Model):
     )
     quantite = models.PositiveIntegerField()
     prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
         return f"{self.quantite} x {self.produit.nom}"
 
     def calculer_sous_total(self):
         return self.quantite * self.prix_unitaire
+    def save(self, *args, **kwargs):
 
+        self.total = self.quantite * self.prix_unitaire
+
+        super().save(*args, **kwargs)
 
 class Paiement(models.Model):
     METHODE_CHOICES = [
@@ -125,6 +167,7 @@ class Livraison(models.Model):
     numero_suivi = models.CharField(max_length=100, unique=True)
     date_prevue = models.DateField(null=True, blank=True)
     date_livraison = models.DateTimeField(null=True, blank=True)
+    
 
     def __str__(self):
         return f"Livraison #{self.numero_suivi} - {self.statut}"

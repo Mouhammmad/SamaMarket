@@ -16,8 +16,10 @@ class SerializerVendeursEnAttente(serializers.ModelSerializer):
         fields = ['id', 'nom', 'ville', 'note', 'apprové', 'proprietaire', 'categorie', 'email', 'description']
     
     def get_categorie(self, obj):
-        # For now, return a default category or extract from description
-        return 'Général'
+        categorie = getattr(obj, 'categorie', None)
+        if categorie is None:
+            return 'Général'
+        return str(categorie)
 
 
 class SerializerUtilisateursRecents(serializers.ModelSerializer):

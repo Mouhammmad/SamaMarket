@@ -6,10 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 import uuid
+from django.db.models import Sum
 from .models import Panier, ArticlePanier, Commande, LigneCommande, Paiement, Livraison
 from .serializers import (
     PanierSerializer, ArticlePanierSerializer,
-    CommandeSerializer, PaiementSerializer, LivraisonSerializer
+    CommandeSerializer, LivraisonSerializer
 )
 
 
@@ -18,7 +19,7 @@ class PanierViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_panier(self, request):
-        panier, created = Panier.objects.get_or_create(utilisateur=request.user)
+        panier, _ = Panier.objects.get_or_create(utilisateur=request.user)
         return panier
 
     @action(detail=False, methods=['get'])
@@ -89,7 +90,7 @@ class CommandeViewSet(GenericViewSet):
 
     @action(detail=False, methods=['post'])
     def valider_panier(self, request):
-        panier, created = Panier.objects.get_or_create(utilisateur=request.user)
+        panier, _ = Panier.objects.get_or_create(utilisateur=request.user)
         if not panier.articles.exists():
             return Response({'erreur': 'Panier vide'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -105,22 +106,39 @@ class CommandeViewSet(GenericViewSet):
         commande = Commande.objects.create(
             utilisateur=request.user,
             adresse_livraison=adresse,
-            montant_total=panier.obtenir_total()
+            sous_total=panier.obtenir_total(),
+            boutique=panier.articles.first().produit.boutique,
+            frais_livraison=0,
+            reduction=0,
         )
 
         for article in panier.articles.all():
+            if article.quantite > article.produit.quantite_stock:
+                return Response(
+                    {'erreur': f"Stock insuffisant pour {article.produit.nom}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             LigneCommande.objects.create(
                 commande=commande,
                 produit=article.produit,
                 quantite=article.quantite,
-                prix_unitaire=article.produit.prix
+                prix_unitaire=article.produit.prix,
+                total=article.quantite * article.produit.prix,
             )
 
-        paiement = Paiement.objects.create(
-            commande=commande,
-            montant=commande.montant_total,
-            methode=methode,
-        )
+            produit = article.produit
+
+            produit.quantite_stock -= article.quantite
+
+            produit.save(
+                update_fields=["quantite_stock"]
+            )
+            Paiement.objects.create(
+                commande=commande,
+                montant=commande.montant_total,
+                methode=methode,
+            )
 
         panier.articles.all().delete()
 
@@ -155,10 +173,11 @@ class CommandeViewSet(GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def mes_commandes(self, request):
+        assert request is not None
         commandes = self.get_queryset()
         serializer = CommandeSerializer(commandes, many=True)
         return Response(serializer.data)
-
+    
 
 class LivraisonViewSet(GenericViewSet):
     authentication_classes = [JWTAuthentication]
@@ -177,7 +196,10 @@ class LivraisonViewSet(GenericViewSet):
             livraison = Livraison.objects.create(
                 commande=commande,
                 adresse=commande.adresse_livraison,
-                numero_suivi=str(uuid.uuid4())[:12].upper(),
+                numero_suivi = (
+                                "SAMA-"
+                                 + uuid.uuid4().hex[:8].upper()
+             ),      
                 date_prevue=request.data.get('date_prevue')
             )
             commande.statut = 'expedie'
@@ -222,25 +244,25 @@ class CommandeVendeurViewSet(GenericViewSet):
 
     def get_queryset(self):
         return Commande.objects.filter(
-            lignes__produit__boutique__gestionnaire=self.request.user
+            lignes__produit__boutique__responsable=self.request.user
         ).distinct()
 
     @action(detail=False, methods=['get'])
     def mes_commandes(self, request):
-        if request.user.role != 'gestionnaire':
-            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role.upper() not in {'VENDOR', 'ADMIN'}:
+            return Response({'erreur': 'Accès réservé aux vendeurs'}, status=status.HTTP_403_FORBIDDEN)
         commandes = self.get_queryset()
         serializer = CommandeSerializer(commandes, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['patch'])
     def mettre_a_jour_statut(self, request, pk=None):
-        if request.user.role != 'gestionnaire':
-            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role.upper() not in {'VENDOR', 'ADMIN'}:
+            return Response({'erreur': 'Accès réservé aux vendeurs'}, status=status.HTTP_403_FORBIDDEN)
         try:
             commande = Commande.objects.get(
                 id=pk,
-                lignes__produit__boutique__gestionnaire=request.user
+                lignes__produit__boutique__responsable=request.user
             )
             nouveau_statut = request.data.get('statut')
             if nouveau_statut not in dict(Commande.STATUT_CHOICES):
@@ -254,13 +276,65 @@ class CommandeVendeurViewSet(GenericViewSet):
 
     @action(detail=True, methods=['get'])
     def detail_commande(self, request, pk=None):
-        if request.user.role != 'gestionnaire':
-            return Response({'erreur': 'Accès réservé aux gestionnaires'}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role.upper() not in {'VENDOR', 'ADMIN'}:
+            return Response({'erreur': 'Accès réservé aux vendeurs'}, status=status.HTTP_403_FORBIDDEN)
         try:
             commande = Commande.objects.get(
                 id=pk,
-                lignes__produit__boutique__gestionnaire=request.user
+                lignes__produit__boutique__responsable=request.user
             )
-            return Response(CommandeSerializer(commande).data)
+            from .serializers import CommandeDetailVendeurSerializer
+            return Response(CommandeDetailVendeurSerializer(commande).data)
         except Commande.DoesNotExist:
             return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        assert request is not None
+        commandes = self.get_queryset()
+
+        total = commandes.count()
+
+        en_attente = commandes.filter(
+            statut='en_attente'
+            ).count()
+
+        confirmees = commandes.filter(
+        statut='confirme'
+        ).count()
+
+        expediees = commandes.filter(
+        statut='expedie'
+        ).count()
+
+        livrees = commandes.filter(
+        statut='livre'
+        ).count()
+
+        annulees = commandes.filter(
+        statut='annule'
+        ).count()
+
+        chiffre_affaires = commandes.aggregate(
+
+            total=Sum("montant_total")
+
+        )["total"] or 0
+
+        return Response({
+
+        "total_commandes": total,
+
+        "en_attente": en_attente,
+
+        "confirmees": confirmees,
+
+        "expediees": expediees,
+
+        "livrees": livrees,
+
+        "annulees": annulees,
+
+        "chiffre_affaires": chiffre_affaires
+
+    })

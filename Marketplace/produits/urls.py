@@ -11,7 +11,7 @@ from .views import (
     ProduitVarianteViewSet
 )
 from .views import VendeurProduitViewSet
-
+from .views import CategorieViewSet
 
 router = DefaultRouter()
 router.register(r'favoris', FavoriViewSet, basename='favoris')
@@ -22,6 +22,15 @@ router.register(
     r'vendeur/produits',
     VendeurProduitViewSet,
     basename='vendeur-produits'
+)
+router.register(
+
+    "categories",
+
+    CategorieViewSet,
+
+    basename="categories"
+
 )
 router.register(
     "vendeur/variantes",
