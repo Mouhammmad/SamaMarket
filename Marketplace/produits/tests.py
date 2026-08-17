@@ -4,7 +4,8 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from boutiques.models import Boutique
-from .models import Categorie, Produit, Favori
+from comptes.models import User
+from .models import Categorie, Produit, Favori, Avis
 
 
 class ProduitDetailApiTests(TestCase):
@@ -47,3 +48,39 @@ class ProduitDetailApiTests(TestCase):
         self.assertFalse(response.json()['disponible'])
         self.assertEqual(response.json()['stock_status'], 'rupture')
         self.assertTrue(response.json()['est_favori'])
+
+    def test_vendeur_receives_reviews_for_his_products(self):
+        vendeur = User.objects.create_user(username='vendeur_test', password='secret123', role='VENDOR')
+        boutique_vendeur = Boutique.objects.create(
+            responsable=vendeur,
+            nom='Boutique Vendeur',
+            description='Boutique du vendeur',
+            ville='Thiès'
+        )
+        produit_vendeur = Produit.objects.create(
+            boutique=boutique_vendeur,
+            categorie=self.categorie,
+            nom='Produit vendeur',
+            description='Produit du vendeur',
+            prix=20000,
+            quantite_stock=10,
+            slug='produit-vendeur-avis-unique',
+            sku='SKU-VENDEUR-AVIS-UNIQUE',
+            est_actif=True,
+        )
+
+        client = User.objects.create_user(username='client_avis', password='secret123', role='CUSTOMER')
+        avis = Avis.objects.create(
+            utilisateur=client,
+            produit=produit_vendeur,
+            note=5,
+            commentaire='Très bon produit'
+        )
+
+        self.client.force_authenticate(vendeur)
+        response = self.client.get('/api/produits/avis/?vendeur=true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]['id'], avis.id)
+        self.assertEqual(response.json()[0]['commentaire'], 'Très bon produit')

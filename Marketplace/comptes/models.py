@@ -21,3 +21,9 @@ class User(AbstractUser):
         blank=True,
         null=True
     )
+
+    # Préférences de notification
+    notif_commandes = models.BooleanField(default=True)
+    notif_promos = models.BooleanField(default=True)
+    notif_favoris = models.BooleanField(default=True)
+    notif_newsletter = models.BooleanField(default=True)

@@ -59,8 +59,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
 ]
+
+CORS_TRUSTED_ORIGINS = [
+    'http://localhost:4200',
+]
+
+# SMS configuration for notification delivery
+SMS_PROVIDER = os.getenv('SMS_PROVIDER', 'console')
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')
 
 ROOT_URLCONF = 'Marketplace.urls'
 
@@ -187,5 +196,10 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 # Autoriser les origines pour CSRF lorsque l'API est appelée depuis l'UI (dev)
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:4200',
-   
 ]
+
+# SMS configuration for notification delivery
+SMS_PROVIDER = os.getenv('SMS_PROVIDER', 'console')
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')

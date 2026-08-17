@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import get_user_model
 from .serializers import ProfilSerializer, ModifierProfilSerializer, ChangerMotDePasseSerializer
 
@@ -44,6 +44,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
 class ProfilViewSet(GenericViewSet):
     permission_classes = [IsAuthenticated]

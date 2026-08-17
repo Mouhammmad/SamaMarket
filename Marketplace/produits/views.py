@@ -32,7 +32,8 @@ class CategorieViewSet(ReadOnlyModelViewSet):
     )
 
 
-from django.db.models import Q
+from django.db.models import Q, Avg, Value
+from django.db.models.functions import Coalesce
 
 class ProduitFilter(django_filters.FilterSet):
 
@@ -40,14 +41,22 @@ class ProduitFilter(django_filters.FilterSet):
         method="filtrer_recherche"
     )
 
-    categorie = django_filters.CharFilter(
-        field_name="categorie__nom",
-        lookup_expr="icontains"
+    categorie = django_filters.NumberFilter(
+        field_name="categorie__id",
+        lookup_expr="exact"
     )
 
     boutique = django_filters.CharFilter(
         field_name="boutique__nom",
         lookup_expr="icontains"
+    )
+
+    note = django_filters.NumberFilter(
+        method="filtrer_note"
+    )
+
+    vendeurVerifie = django_filters.BooleanFilter(
+        method="filtrer_vendeur_verifie"
     )
 
     prix_min = django_filters.NumberFilter(
@@ -82,6 +91,24 @@ class ProduitFilter(django_filters.FilterSet):
         return queryset.filter(
             quantite_stock=0
         )
+
+    def filtrer_note(self, queryset, _name, value):
+        assert _name is not None
+
+        return queryset.filter(
+            avis__note__gte=value,
+            avis__est_approuve=True
+        )
+
+    def filtrer_vendeur_verifie(self, queryset, _name, value):
+        assert _name is not None
+
+        if value:
+            return queryset.filter(
+                boutique__apprové=True
+            )
+
+        return queryset
 
     def filtrer_recherche(self, queryset, _name, value):
         assert _name is not None
@@ -243,24 +270,66 @@ class FavoriViewSet(ModelViewSet):
 
         })
 class AvisViewSet(GenericViewSet):
-    permission_classes = [IsAuthenticated]
+    serializer_class = AvisSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'avis_produit']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def list(self, request):
+        produit_id = request.query_params.get('produit_id')
+        est_vendeur = str(request.query_params.get('vendeur', '')).lower() == 'true'
+
+        if est_vendeur:
+            if not request.user.is_authenticated:
+                return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            if getattr(request.user, 'role', '').upper() not in {'VENDOR', 'ADMIN'}:
+                return Response({'detail': 'Accès réservé aux vendeurs.'}, status=status.HTTP_403_FORBIDDEN)
+            avis = Avis.objects.filter(produit__boutique__responsable=request.user).select_related('produit', 'utilisateur').order_by('-date_creation')
+            serializer = AvisSerializer(avis, many=True, context={'request': request})
+            return Response(serializer.data)
+
+        if produit_id:
+            avis = Avis.objects.filter(produit_id=produit_id, est_approuve=True)
+        else:
+            if not request.user.is_authenticated:
+                return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            avis = Avis.objects.filter(utilisateur=request.user)
+        serializer = AvisSerializer(avis, many=True, context={'request': request})
+        return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
     def ajouter(self, request):
         serializer = AvisSerializer(data=request.data)
         if serializer.is_valid():
             produit = serializer.validated_data['produit']
-            if Avis.objects.filter(utilisateur=request.user, produit=produit).exists():
-                return Response({'erreur': 'Vous avez déjà donné un avis sur ce produit'}, status=status.HTTP_400_BAD_REQUEST)
-            avis = serializer.save(utilisateur=request.user)
-            return Response(AvisSerializer(avis).data, status=status.HTTP_201_CREATED)
+            avis, created = Avis.objects.update_or_create(
+                utilisateur=request.user,
+                produit=produit,
+                defaults={
+                    'note': serializer.validated_data['note'],
+                    'commentaire': serializer.validated_data.get('commentaire', ''),
+                }
+            )
+            status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            return Response(AvisSerializer(avis, context={'request': request}).data, status=status_code)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
     def avis_produit(self, request):
         produit_id = request.query_params.get('produit_id')
         avis = Avis.objects.filter(produit_id=produit_id, est_approuve=True)
-        serializer = AvisSerializer(avis, many=True)
+        serializer = AvisSerializer(avis, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='mes')
+    def mes(self, request):
+        """Retourne les avis de l'utilisateur connecté (tous états d'approbation)."""
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+        avis = Avis.objects.filter(utilisateur=request.user)
+        serializer = AvisSerializer(avis, many=True, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=True, methods=['delete'])
@@ -310,11 +379,13 @@ class ProduitViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProduitFilter
     search_fields = ['nom', 'description', 'categorie__nom']
-    ordering_fields = ['prix', 'date_creation', 'nom']
+    ordering_fields = ['prix', 'date_creation', 'nom', 'note_moyenne']
     ordering = ['-date_creation']
 
     def get_queryset(self):
-        return Produit.objects.filter(est_actif=True).select_related('categorie', 'boutique')
+        return Produit.objects.filter(est_actif=True).select_related('categorie', 'boutique').annotate(
+            note_moyenne=Coalesce(Avg('avis__note'), Value(0))
+        )
 
     def list(self, request, *args, **kwargs):
         """Retourne les produits avec pagination et filtres"""

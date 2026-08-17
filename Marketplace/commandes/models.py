@@ -59,18 +59,26 @@ class Commande(models.Model):
     adresse_livraison = models.TextField()
     notes = models.TextField(blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
-    numero = models.CharField(max_length=30, unique=True, blank=True)
+    numero = models.CharField(max_length=30, unique=True, blank=True, null=True)
 
     boutique = models.ForeignKey(
         'boutiques.Boutique',
         on_delete=models.CASCADE,
-        related_name='commandes'
+        related_name='commandes',
+        blank=True,
+        null=True
     )
 
     frais_livraison = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=0
+    )
+
+    mode_livraison = models.CharField(
+        max_length=100,
+        blank=True,
+        default=''
     )
 
     reduction = models.DecimalField(
@@ -171,3 +179,38 @@ class Livraison(models.Model):
 
     def __str__(self):
         return f"Livraison #{self.numero_suivi} - {self.statut}"
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('commande', 'Commande'),
+        ('paiement', 'Paiement'),
+        ('livraison', 'Livraison'),
+        ('systeme', 'Système'),
+    ]
+
+    utilisateur = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    commande = models.ForeignKey(
+        Commande,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        blank=True,
+        null=True
+    )
+    titre = models.CharField(max_length=200)
+    message = models.TextField()
+    type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='commande')
+    est_lu = models.BooleanField(default=False)
+    sms_envoye = models.BooleanField(default=False)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_creation']
+
+    def __str__(self):
+        return f"Notification pour {self.utilisateur.username}: {self.titre}"
+

@@ -141,3 +141,135 @@ class VueExportCommandesAdmin(APIView):
             writer.writerow([o.id, o.utilisateur.username, getattr(o.utilisateur, 'email', ''), str(o.montant_total), o.statut, o.date_creation.isoformat(), items_summary])
 
         return response
+from rest_framework.generics import ListAPIView
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class VueListeUtilisateurs(ListAPIView):
+
+    permission_classes = [IsAuthenticated]
+
+    serializer_class = SerializerUtilisateursRecents
+
+    def get_queryset(self):
+
+        if not has_admin_access(self.request.user):
+            return User.objects.none()
+
+        recherche = self.request.GET.get("search")
+
+        queryset = User.objects.all().order_by("-date_joined")
+
+        if recherche:
+            queryset = queryset.filter(
+                username__icontains=recherche
+            )
+
+        return queryset
+from rest_framework.generics import RetrieveAPIView
+
+class VueDetailUtilisateur(RetrieveAPIView):
+
+    permission_classes = [IsAuthenticated]
+
+    serializer_class = SerializerUtilisateursRecents
+
+    queryset = User.objects.all()
+
+    def get(self, request, *args, **kwargs):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {'detail': 'Accès refusé.'},
+                status=403
+            )
+
+        return super().get(request, *args, **kwargs)
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+
+class VueGestionUtilisateur(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {"detail": "Accès refusé."},
+                status=403
+            )
+
+        utilisateur = User.objects.get(pk=pk)
+
+        action = request.data.get("action")
+
+        if action == "suspendre":
+            utilisateur.is_active = False
+
+        elif action == "reactiver":
+            utilisateur.is_active = True
+
+        utilisateur.save()
+
+        return Response({
+            "message": "Utilisateur mis à jour."
+        })
+
+    def delete(self, request, pk):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {"detail": "Accès refusé."},
+                status=403
+            )
+
+        utilisateur = User.objects.get(pk=pk)
+
+        utilisateur.delete()
+
+        return Response({
+            "message": "Utilisateur supprimé."
+        })   
+class VueListeBoutiques(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {"detail": "Accès refusé"},
+                status=403
+            )
+
+        boutiques = Boutique.objects.all().order_by("-id")
+
+        serializer = SerializerVendeursEnAttente(
+            boutiques,
+            many=True
+        )
+
+        return Response(serializer.data) 
+
+from django.shortcuts import get_object_or_404
+
+class VueDetailBoutique(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {"detail": "Accès refusé"},
+                status=403
+            )
+
+        boutique = get_object_or_404(Boutique, pk=pk)
+
+        serializer = SerializerVendeursEnAttente(boutique)
+
+        return Response(serializer.data)

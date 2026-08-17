@@ -276,7 +276,7 @@ class AvisSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Avis
-        fields = ['id', 'utilisateur', 'produit_id', 'note', 'commentaire', 'est_approuve', 'date_creation']
+        fields = ['id', 'utilisateur', 'produit_id', 'produit', 'note', 'commentaire', 'est_approuve', 'date_creation']
         read_only_fields = ['est_approuve', 'date_creation']
 
     def validate_note(self, value):

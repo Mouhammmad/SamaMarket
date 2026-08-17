@@ -1,3 +1,6 @@
+from decimal import Decimal
+import logging
+from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,11 +10,91 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 import uuid
 from django.db.models import Sum
-from .models import Panier, ArticlePanier, Commande, LigneCommande, Paiement, Livraison
+from .models import Panier, ArticlePanier, Commande, LigneCommande, Paiement, Livraison, Notification
+from .utils import _creer_notification
+from produits.models import Promotion, Favori, Avis
 from .serializers import (
     PanierSerializer, ArticlePanierSerializer,
-    CommandeSerializer, LivraisonSerializer
+    CommandeSerializer, LivraisonSerializer, NotificationSerializer
 )
+from produits.serializers import FavoriSerializer, AvisSerializer
+
+logger = logging.getLogger(__name__)
+
+
+def _calculer_reduction_promo(panier, code_promo):
+    code_promo = (code_promo or '').strip()
+    if not code_promo:
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Aucun code promo fourni',
+            'code_promo': ''
+        }
+
+    aujourd_hui = timezone.now().date()
+    promotion = Promotion.objects.filter(
+        code__iexact=code_promo,
+        est_active=True,
+        date_debut__lte=aujourd_hui,
+        date_fin__gte=aujourd_hui
+    ).select_related('boutique').prefetch_related('produits').first()
+
+    if not promotion:
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Code promo invalide',
+            'code_promo': code_promo
+        }
+
+    if promotion.limite_usage > 0 and promotion.nombre_utilise >= promotion.limite_usage:
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Ce code promo n’est plus disponible',
+            'code_promo': code_promo
+        }
+
+    articles = list(panier.articles.select_related('produit').all())
+    if not articles:
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Votre panier est vide',
+            'code_promo': code_promo
+        }
+
+    ids_produits = {article.produit_id for article in articles}
+    if promotion.produits.exists() and not ids_produits.intersection(promotion.produits.values_list('id', flat=True)):
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Ce code promo ne s’applique pas à vos articles',
+            'code_promo': code_promo
+        }
+
+    if promotion.boutique_id and not any(article.produit.boutique_id == promotion.boutique_id for article in articles):
+        return {
+            'applique': False,
+            'reduction': Decimal('0.00'),
+            'message': 'Ce code promo ne s’applique pas à votre boutique',
+            'code_promo': code_promo
+        }
+
+    sous_total = panier.obtenir_total()
+    if promotion.type_remise == 'pourcentage':
+        reduction = (Decimal(promotion.taux_remise) / Decimal('100')) * sous_total
+    else:
+        reduction = min(Decimal(promotion.taux_remise), sous_total)
+
+    return {
+        'applique': True,
+        'reduction': round(reduction, 2),
+        'message': 'Code promo appliqué',
+        'code_promo': code_promo,
+        'promotion': promotion
+    }
 
 
 class PanierViewSet(GenericViewSet):
@@ -25,7 +108,7 @@ class PanierViewSet(GenericViewSet):
     @action(detail=False, methods=['get'])
     def mon_panier(self, request):
         panier = self.get_panier(request)
-        serializer = PanierSerializer(panier)
+        serializer = PanierSerializer(panier, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
@@ -44,7 +127,7 @@ class PanierViewSet(GenericViewSet):
             else:
                 article.quantite = quantite
             article.save()
-            return Response(PanierSerializer(panier).data, status=status.HTTP_200_OK)
+            return Response(PanierSerializer(panier, context={'request': request}).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['patch'])
@@ -59,7 +142,7 @@ class PanierViewSet(GenericViewSet):
             else:
                 article.quantite = quantite
                 article.save()
-            return Response(PanierSerializer(panier).data)
+            return Response(PanierSerializer(panier, context={'request': request}).data)
         except ArticlePanier.DoesNotExist:
             return Response({'erreur': 'Article introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -70,7 +153,7 @@ class PanierViewSet(GenericViewSet):
         try:
             article = ArticlePanier.objects.get(id=article_id, panier=panier)
             article.delete()
-            return Response(PanierSerializer(panier).data)
+            return Response(PanierSerializer(panier, context={'request': request}).data)
         except ArticlePanier.DoesNotExist:
             return Response({'erreur': 'Article introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -79,6 +162,24 @@ class PanierViewSet(GenericViewSet):
         panier = self.get_panier(request)
         panier.articles.all().delete()
         return Response({'message': 'Panier vidé'})
+
+    @action(detail=False, methods=['post'])
+    def appliquer_code_promo(self, request):
+        panier = self.get_panier(request)
+        code_promo = request.data.get('code_promo', '')
+        result = _calculer_reduction_promo(panier, code_promo)
+
+        if not result['applique']:
+            return Response({'erreur': result['message']}, status=status.HTTP_400_BAD_REQUEST)
+
+        sous_total = panier.obtenir_total()
+        return Response({
+            'message': result['message'],
+            'code_promo': result['code_promo'],
+            'reduction': float(result['reduction']),
+            'sous_total': float(sous_total),
+            'total': float(max(sous_total - result['reduction'], Decimal('0.00')))
+        })
 
 
 class CommandeViewSet(GenericViewSet):
@@ -96,6 +197,11 @@ class CommandeViewSet(GenericViewSet):
 
         adresse = request.data.get('adresse_livraison')
         methode = request.data.get('methode_paiement')
+        code_promo = request.data.get('code_promo', '')
+        reduction_info = _calculer_reduction_promo(panier, code_promo)
+
+        if code_promo and not reduction_info['applique']:
+            return Response({'erreur': reduction_info['message']}, status=status.HTTP_400_BAD_REQUEST)
 
         if not adresse:
             return Response({'erreur': 'Adresse de livraison requise'}, status=status.HTTP_400_BAD_REQUEST)
@@ -103,13 +209,20 @@ class CommandeViewSet(GenericViewSet):
         if methode not in ['wave', 'orange_money']:
             return Response({'erreur': 'Méthode de paiement invalide'}, status=status.HTTP_400_BAD_REQUEST)
 
+        frais_livraison = request.data.get('prix_livraison', 0) or 0
+        try:
+            frais_livraison = Decimal(str(frais_livraison))
+        except Exception:
+            return Response({'erreur': 'Prix de livraison invalide'}, status=status.HTTP_400_BAD_REQUEST)
+
         commande = Commande.objects.create(
             utilisateur=request.user,
             adresse_livraison=adresse,
             sous_total=panier.obtenir_total(),
             boutique=panier.articles.first().produit.boutique,
-            frais_livraison=0,
-            reduction=0,
+            frais_livraison=frais_livraison,
+            mode_livraison=request.data.get('mode_livraison', '') or '',
+            reduction=reduction_info['reduction'],
         )
 
         for article in panier.articles.all():
@@ -134,18 +247,44 @@ class CommandeViewSet(GenericViewSet):
             produit.save(
                 update_fields=["quantite_stock"]
             )
-            Paiement.objects.create(
-                commande=commande,
-                montant=commande.montant_total,
-                methode=methode,
-            )
+
+        Paiement.objects.create(
+            commande=commande,
+            montant=commande.montant_total,
+            methode=methode,
+        )
+
+        if reduction_info['applique'] and reduction_info.get('promotion'):
+            promotion = reduction_info['promotion']
+            promotion.nombre_utilise = (promotion.nombre_utilise or 0) + 1
+            promotion.save(update_fields=['nombre_utilise'])
 
         panier.articles.all().delete()
 
+        _creer_notification(
+            request.user,
+            commande,
+            f'Commande {commande.numero} reçue',
+            f'Votre commande {commande.numero} a bien été créée et est en attente de traitement par le vendeur.',
+            'commande'
+        )
+
+        if commande.boutique and getattr(commande.boutique, 'responsable', None):
+            _creer_notification(
+                commande.boutique.responsable,
+                commande,
+                f'Nouvelle commande {commande.numero}',
+                f'Une nouvelle commande {commande.numero} est arrivée pour votre boutique.',
+                'commande'
+            )
+
         return Response({
             'message': 'Commande créée avec succès',
-            'commande': CommandeSerializer(commande).data
+            'commande': CommandeSerializer(commande, context={'request': request}).data,
+            'reduction': float(commande.reduction),
+            'total': float(commande.montant_total),
         }, status=status.HTTP_201_CREATED)
+
 
     @action(detail=True, methods=['post'])
     def confirmer_paiement(self, request, pk=None):
@@ -166,7 +305,7 @@ class CommandeViewSet(GenericViewSet):
 
             return Response({
                 'message': 'Paiement confirmé',
-                'commande': CommandeSerializer(commande).data
+                'commande': CommandeSerializer(commande, context={'request': request}).data
             })
         except Commande.DoesNotExist:
             return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
@@ -175,9 +314,50 @@ class CommandeViewSet(GenericViewSet):
     def mes_commandes(self, request):
         assert request is not None
         commandes = self.get_queryset()
-        serializer = CommandeSerializer(commandes, many=True)
+        serializer = CommandeSerializer(commandes, many=True, context={'request': request})
         return Response(serializer.data)
-    
+
+    @action(detail=False, methods=['get'])
+    def notifications(self, request):
+        notifications = Notification.objects.filter(utilisateur=request.user).order_by('-date_creation')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def marquer_toutes_lues(self, request):
+        Notification.objects.filter(utilisateur=request.user, est_lu=False).update(est_lu=True)
+        return Response({'message': 'Toutes les notifications ont été marquées comme lues'})
+
+    @action(detail=False, methods=['get'])
+    def resume(self, request):
+        """Retourne un résumé consolidé: notifications, commandes, favoris, avis, et promotions."""
+        notifications = Notification.objects.filter(utilisateur=request.user).order_by('-date_creation')[:10]
+        commandes = self.get_queryset()[:10]
+        favoris = Favori.objects.filter(utilisateur=request.user)[:10]
+        avis = Avis.objects.filter(utilisateur=request.user)[:10]
+
+        # Récupérer les promotions actives sur les produits favoris
+        produits_favoris = [f.produit_id for f in favoris]
+        promotions_favoris = []
+        if produits_favoris:
+            from django.utils import timezone
+            aujourd_hui = timezone.now().date()
+            promotions_favoris = list(
+                Promotion.objects.filter(
+                    produits__id__in=produits_favoris,
+                    est_active=True,
+                    date_debut__lte=aujourd_hui,
+                    date_fin__gte=aujourd_hui
+                ).distinct()[:5]
+            )
+
+        return Response({
+            'notifications': NotificationSerializer(notifications, many=True).data,
+            'commandes': CommandeSerializer(commandes, many=True, context={'request': request}).data,
+            'favoris': FavoriSerializer(favoris, many=True, context={'request': request}).data,
+            'avis': AvisSerializer(avis, many=True, context={'request': request}).data,
+            'promotions_favoris': [{'id': p.id, 'code': p.code, 'type_remise': p.type_remise, 'taux_remise': float(p.taux_remise), 'date_fin': p.date_fin.isoformat()} for p in promotions_favoris]
+        })
 
 class LivraisonViewSet(GenericViewSet):
     authentication_classes = [JWTAuthentication]
@@ -252,8 +432,23 @@ class CommandeVendeurViewSet(GenericViewSet):
         if request.user.role.upper() not in {'VENDOR', 'ADMIN'}:
             return Response({'erreur': 'Accès réservé aux vendeurs'}, status=status.HTTP_403_FORBIDDEN)
         commandes = self.get_queryset()
-        serializer = CommandeSerializer(commandes, many=True)
+        serializer = CommandeSerializer(commandes, many=True, context={'request': request})
         return Response(serializer.data)
+
+    def destroy(self, request, pk=None):
+        if request.user.role.upper() not in {'VENDOR', 'ADMIN'}:
+            return Response({'erreur': 'Accès réservé aux vendeurs'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            commande = Commande.objects.get(
+                id=pk,
+                lignes__produit__boutique__responsable=request.user
+            )
+        except Commande.DoesNotExist:
+            return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+        commande.delete()
+        return Response({'message': 'Commande supprimée'}, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['patch'])
     def mettre_a_jour_statut(self, request, pk=None):
@@ -270,7 +465,30 @@ class CommandeVendeurViewSet(GenericViewSet):
 
             commande.statut = nouveau_statut
             commande.save()
-            return Response(CommandeSerializer(commande).data)
+
+            if commande.utilisateur:
+                if nouveau_statut == 'confirme':
+                    titre = f'Commande {commande.numero} confirmée'
+                    message = f'Votre commande {commande.numero} a été confirmée par le vendeur.'
+                elif nouveau_statut == 'expedie':
+                    titre = f'Commande {commande.numero} expédiée'
+                    message = f'Votre commande {commande.numero} a été expédiée par le vendeur.'
+                elif nouveau_statut == 'annule':
+                    titre = f'Commande {commande.numero} annulée'
+                    message = f'Votre commande {commande.numero} a été annulée par le vendeur.'
+                else:
+                    titre = f'Statut de la commande {commande.numero} mis à jour'
+                    message = f'Le statut de votre commande {commande.numero} a été mis à jour en {commande.get_statut_display()}.'
+
+                _creer_notification(
+                    commande.utilisateur,
+                    commande,
+                    titre,
+                    message,
+                    'commande'
+                )
+
+            return Response(CommandeSerializer(commande, context={'request': request}).data)
         except Commande.DoesNotExist:
             return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -283,8 +501,7 @@ class CommandeVendeurViewSet(GenericViewSet):
                 id=pk,
                 lignes__produit__boutique__responsable=request.user
             )
-            from .serializers import CommandeDetailVendeurSerializer
-            return Response(CommandeDetailVendeurSerializer(commande).data)
+            return Response(CommandeSerializer(commande, context={'request': request}).data)
         except Commande.DoesNotExist:
             return Response({'erreur': 'Commande introuvable'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -316,9 +533,7 @@ class CommandeVendeurViewSet(GenericViewSet):
         ).count()
 
         chiffre_affaires = commandes.aggregate(
-
-            total=Sum("montant_total")
-
+            total=Sum("sous_total")
         )["total"] or 0
 
         return Response({

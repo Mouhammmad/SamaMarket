@@ -2,13 +2,28 @@ from rest_framework import serializers
 from .models import Panier, ArticlePanier
 from produits.models import Produit
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 
 User = get_user_model()
 
 class ProduitResumSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Produit
-        fields = ['id', 'nom', 'prix', 'image']
+        fields = ['id', 'nom', 'prix', 'image', 'image_url']
+
+    def get_image_url(self, obj):
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        if obj.image:
+            try:
+                url = obj.image.url
+            except ValueError:
+                return None
+            if request is not None:
+                return request.build_absolute_uri(url)
+            return url
+        return None
 
 
 class ArticlePanierSerializer(serializers.ModelSerializer):
@@ -39,7 +54,7 @@ class PanierSerializer(serializers.ModelSerializer):
     def get_total(self, obj):
         return obj.obtenir_total()
 
-from .models import Commande, LigneCommande, Paiement
+from .models import Commande, LigneCommande, Paiement, Notification
 
 class LigneCommandeSerializer(serializers.ModelSerializer):
     produit = ProduitResumSerializer(read_only=True)
@@ -56,21 +71,68 @@ class LigneCommandeSerializer(serializers.ModelSerializer):
 class CommandeSerializer(serializers.ModelSerializer):
     lignes = LigneCommandeSerializer(many=True, read_only=True)
     paiement = serializers.SerializerMethodField()
-    client = ClientCommandeSerializer(
-    source="utilisateur",
-    read_only=True
-)
-    montant_total = serializers.ReadOnlyField()
+    mode_paiement = serializers.SerializerMethodField()
+    client = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
+    telephone = serializers.SerializerMethodField()
+    nombre_produits = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    total = serializers.DecimalField(source='montant_total', max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Commande
-        fields = ['id', 'numero', 'statut', "client", "montant_total", 'sous_total', 'adresse_livraison', 'notes', 'lignes', 'paiement', 'date_creation', 'boutique']
+        fields = [
+            'id',
+            'numero',
+            'statut',
+            'sous_total',
+            'frais_livraison',
+            'reduction',
+            'mode_livraison',
+            'adresse_livraison',
+            'notes',
+            'lignes',
+            'paiement',
+            'mode_paiement',
+            'client',
+            'email',
+            'telephone',
+            'nombre_produits',
+            'total',
+            'date_creation',
+            'date',
+            'boutique'
+        ]
 
     def get_paiement(self, obj):
         try:
             return PaiementSerializer(obj.paiement).data
-        except:
+        except Exception:
             return None
+
+    def get_mode_paiement(self, obj):
+        paiement = getattr(obj, 'paiement', None)
+        return paiement.methode if paiement else None
+
+    def get_client(self, obj):
+        if obj.utilisateur:
+            first_name = getattr(obj.utilisateur, 'first_name', '') or getattr(obj.utilisateur, 'prenom', '')
+            last_name = getattr(obj.utilisateur, 'last_name', '') or getattr(obj.utilisateur, 'nom', '')
+            return f"{first_name} {last_name}".strip() or obj.utilisateur.username
+        return None
+
+    def get_email(self, obj):
+        return getattr(obj.utilisateur, 'email', None)
+
+    def get_telephone(self, obj):
+        return getattr(obj.utilisateur, 'telephone', None) or getattr(obj.utilisateur, 'phone', None)
+
+    def get_nombre_produits(self, obj):
+        total = obj.lignes.aggregate(total=Sum('quantite'))['total'] or 0
+        return int(total)
+
+    def get_date(self, obj):
+        return obj.date_creation.strftime('%d/%m/%Y %H:%M') if obj.date_creation else None
 
 
 class PaiementSerializer(serializers.ModelSerializer):
@@ -86,10 +148,6 @@ class LivraisonSerializer(serializers.ModelSerializer):
         fields = ['id', 'adresse', 'statut', 'numero_suivi', 'date_prevue', 'date_livraison']
 
 class ClientCommandeSerializer(serializers.ModelSerializer):
-    prenom = serializers.CharField(source='first_name', read_only=True)
-    nom = serializers.CharField(source='last_name', read_only=True)
-    telephone = serializers.CharField(source='phone', read_only=True)
-
     class Meta:
         model = User
         fields = [
@@ -101,65 +159,18 @@ class ClientCommandeSerializer(serializers.ModelSerializer):
         ]
 
 
-class CommandeDetailVendeurSerializer(serializers.ModelSerializer):
-    # flatten user info
-    client = serializers.SerializerMethodField()
-    email = serializers.SerializerMethodField()
-    telephone = serializers.SerializerMethodField()
-    # map lines to produits array expected by frontend
-    produits = serializers.SerializerMethodField()
-    mode_paiement = serializers.SerializerMethodField()
-    paiement = serializers.SerializerMethodField()
-    adresse = serializers.CharField(source='adresse_livraison', read_only=True)
-    livraison = serializers.DecimalField(source='frais_livraison', max_digits=10, decimal_places=2, read_only=True)
-    total = serializers.SerializerMethodField()
+class NotificationSerializer(serializers.ModelSerializer):
+    date_creation = serializers.DateTimeField(format='%d/%m/%Y %H:%M', read_only=True)
 
     class Meta:
-        model = Commande
+        model = Notification
         fields = [
-            'id', 'numero', 'statut', 'client', 'email', 'telephone',
-            'produits', 'adresse', 'mode_paiement', 'paiement',
-            'sous_total', 'livraison', 'reduction', 'total', 'date_creation'
+            'id',
+            'commande',
+            'titre',
+            'message',
+            'type',
+            'est_lu',
+            'sms_envoye',
+            'date_creation'
         ]
-
-    def get_client(self, obj):
-        u = obj.utilisateur
-        name = (getattr(u, 'first_name', '') or '') + (' ' + (getattr(u, 'last_name','') or '') if getattr(u, 'last_name', '') else '')
-        return name.strip() or getattr(u, 'username', '')
-
-    def get_email(self, obj):
-        return getattr(obj.utilisateur, 'email', None)
-
-    def get_telephone(self, obj):
-        return getattr(obj.utilisateur, 'phone', None)
-
-    def get_produits(self, obj):
-        items = []
-        for line in obj.lignes.select_related('produit').all():
-            p = line.produit
-            items.append({
-                'id': p.id,
-                'nom': p.nom,
-                'image': getattr(p.image, 'url', None) if getattr(p, 'image', None) else None,
-                'quantite': line.quantite,
-                'prix': str(line.prix_unitaire)
-            })
-        return items
-
-    def get_mode_paiement(self, obj):
-        try:
-            return obj.paiement.methode
-        except Exception:
-            return None
-
-    def get_paiement(self, obj):
-        try:
-            return PaiementSerializer(obj.paiement).data
-        except Exception:
-            return None
-
-    def get_total(self, obj):
-        try:
-            return str(obj.montant_total)
-        except Exception:
-            return None

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from commandes.models import Commande, LigneCommande
+from commandes.utils import _creer_notification
 from produits.models import Produit
 
 User = get_user_model()
@@ -281,4 +282,21 @@ class VueMettreAJourStatutCommandeVendeur(VueVendeurBase):
 
         commande.statut = nouveau_statut
         commande.save()
+
+        if commande.utilisateur:
+            messages = {
+                'en_attente': f'Votre commande {commande.numero} est en attente et sera traitée prochainement.',
+                'confirme': f'Votre commande {commande.numero} a été confirmée par le vendeur.',
+                'expedie': f'Votre commande {commande.numero} a été expédiée.',
+                'livre': f'Votre commande {commande.numero} a été livrée.',
+                'annule': f'Votre commande {commande.numero} a été annulée.',
+            }
+            _creer_notification(
+                commande.utilisateur,
+                commande,
+                f'Statut de la commande {commande.numero}',
+                messages.get(nouveau_statut, f'Le statut de votre commande {commande.numero} a été mis à jour.'),
+                'commande'
+            )
+
         return Response(SerializerCommandeVendeur(commande).data)

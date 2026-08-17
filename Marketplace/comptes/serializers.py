@@ -32,19 +32,26 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'phone', 'role']
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email', 'phone', 'role',
+            'notif_commandes', 'notif_promos', 'notif_favoris', 'notif_newsletter'
+        ]
 
 class ProfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
-        fields = ['id', 'username', 'email', 'telephone', 'adresse', 'photo_profil', 'role', 'date_joined']
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email', 'phone', 'role', 'date_joined',
+            'notif_commandes', 'notif_promos', 'notif_favoris', 'notif_newsletter'
+        ]
         read_only_fields = ['id', 'role', 'date_joined']
 
 
 class ModifierProfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
-        fields = ['username', 'email', 'telephone', 'adresse', 'photo_profil']
+        fields = ['username', 'first_name', 'last_name', 'email', 'phone',
+                  'notif_commandes', 'notif_promos', 'notif_favoris', 'notif_newsletter']
 
     def validate_email(self, value):
         utilisateur = self.context['request'].user
