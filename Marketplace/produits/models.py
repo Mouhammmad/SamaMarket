@@ -39,8 +39,17 @@ class Produit(models.Model):
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     marque = models.CharField(max_length=100, blank=True)
-    sku = models.CharField(max_length=100, unique=True, blank=True)
-    slug = models.SlugField(unique=True, blank=True)
+    sku = models.CharField(
+    max_length=100,
+    blank=True,
+    null=True,
+    unique=True
+)
+    slug = models.SlugField(
+    blank=True,
+    null=True,
+    unique=True
+)
     etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default='neuf')
     prix = models.DecimalField(max_digits=10, decimal_places=2)
     quantite_stock = models.PositiveIntegerField(default=0)

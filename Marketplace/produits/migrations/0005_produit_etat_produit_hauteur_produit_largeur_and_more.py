@@ -13,46 +13,92 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='produit',
             name='etat',
-            field=models.CharField(choices=[('neuf', 'Neuf'), ('occasion', 'Occasion')], default='neuf', max_length=20),
+            field=models.CharField(
+                choices=[
+                    ('neuf', 'Neuf'),
+                    ('occasion', 'Occasion')
+                ],
+                default='neuf',
+                max_length=20
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='hauteur',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=8),
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                max_digits=8
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='largeur',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=8),
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                max_digits=8
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='longueur',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=8),
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                max_digits=8
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='marque',
-            field=models.CharField(blank=True, max_length=100),
+            field=models.CharField(
+                blank=True,
+                max_length=100
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='mots_cles',
-            field=models.CharField(blank=True, max_length=300),
+            field=models.CharField(
+                blank=True,
+                max_length=300
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='poids',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=8),
+            field=models.DecimalField(
+                decimal_places=2,
+                default=0,
+                max_digits=8
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='sku',
-            field=models.CharField(blank=True, max_length=100, unique=True),
+            field=models.CharField(
+                blank=True,
+                null=True,
+                max_length=100,
+                unique=True
+            ),
         ),
+
         migrations.AddField(
             model_name='produit',
             name='slug',
-            field=models.SlugField(blank=True, unique=True),
+            field=models.SlugField(
+                blank=True,
+                null=True,
+                unique=True
+            ),
         ),
     ]
