@@ -126,7 +126,8 @@ class Promotion(models.Model):
         blank=True
     )
     code = models.CharField(max_length=50, unique=True)
-    taux_remise = models.DecimalField(max_digits=5, decimal_places=2)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    taux_remise = models.DecimalField(max_digits=10, decimal_places=2)
     type_remise = models.CharField(max_length=20, choices=TYPE_CHOICES)
     date_debut = models.DateField()
     date_fin = models.DateField()

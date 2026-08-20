@@ -40,6 +40,10 @@ urlpatterns = [
     path('api/boutiques/', include('boutiques.urls')),
     path('api/dashboard/admin/', include('dashboardAdmin.urls')),
     path('api/dashboard/vendeur/', include('dashboardVendeur.urls')),
+    path(
+    'api/messages/',
+    include('messages.urls')
+),
 ]
 
 # Serve media files during development

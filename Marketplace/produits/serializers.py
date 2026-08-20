@@ -286,82 +286,107 @@ class AvisSerializer(serializers.ModelSerializer):
 
 
 class PromotionSerializer(serializers.ModelSerializer):
-    produits_ids = serializers.PrimaryKeyRelatedField(
-    queryset=Produit.objects.all(),
-    many=True,
-    source="produits",
-    write_only=True,
-    required=False
-)
-    boutique = serializers.CharField(source='boutique.nom', read_only=True)
-    produits = ProduitResumSerializer(many=True, read_only=True)
-    
 
     produits_ids = serializers.PrimaryKeyRelatedField(
-    queryset=Produit.objects.all(),
-    many=True,
-    source="produits",
-    write_only=True
-)
+        queryset=Produit.objects.all(),
+        many=True,
+        source="produits",
+        write_only=True,
+        required=False
+    )
+
+    boutique = serializers.CharField(
+        source='boutique.nom',
+        read_only=True
+    )
+
+    produits = ProduitResumSerializer(
+        many=True,
+        read_only=True
+    )
+
+    est_valide = serializers.SerializerMethodField()
 
     class Meta:
         model = Promotion
+
         fields = [
-    'id',
+            'id',
+            'code',
+            'date_creation',
+            'taux_remise',
+            'type_remise',
+            'date_debut',
+            'date_fin',
+            'est_active',
+            'limite_usage',
+            'nombre_utilise',
+            'est_valide',
+            'boutique',
+            'produits',
+            'produits_ids'
+        ]
 
-    'code',
+    def validate(self, attrs):
+        taux = attrs.get('taux_remise', getattr(self.instance, 'taux_remise', None))
+        type_remise = attrs.get('type_remise', getattr(self.instance, 'type_remise', None))
 
-    'taux_remise',
+        if taux is not None and taux < 0:
+            raise serializers.ValidationError({
+                'taux_remise': 'La remise doit être positive.'
+            })
 
-    'type_remise',
+        if type_remise == 'pourcentage' and taux is not None and taux > 100:
+            raise serializers.ValidationError({
+                'taux_remise': 'Un pourcentage doit être compris entre 0 et 100.'
+            })
 
-    'date_debut',
-
-    'date_fin',
-
-    'est_active',
-
-    'limite_usage',
-
-    'nombre_utilise',
-
-    'est_valide',
-
-    'boutique',
-
-    'produits',
-
-    'produits_ids'
-]
+        return attrs
 
     def get_est_valide(self, obj):
         return obj.est_valide()
 
     def create(self, validated_data):
 
-        produits = validated_data.pop("produits", [])
+        produits = validated_data.pop(
+            "produits",
+            []
+        )
 
-        promotion = Promotion.objects.create(**validated_data)
+        promotion = Promotion.objects.create(
+            **validated_data
+        )
 
-        promotion.produits.set(produits)
+        promotion.produits.set(
+            produits
+        )
 
         return promotion
+
     def update(self, instance, validated_data):
 
-        produits = validated_data.pop("produits", None)
+        produits = validated_data.pop(
+            "produits",
+            None
+        )
 
         for attr, value in validated_data.items():
 
-            setattr(instance, attr, value)
+            setattr(
+                instance,
+                attr,
+                value
+            )
 
         instance.save()
 
         if produits is not None:
 
-            instance.produits.set(produits)
+            instance.produits.set(
+                produits
+            )
 
         return instance
-
 class VendeurProduitSerializer(serializers.ModelSerializer):
 
     class Meta:

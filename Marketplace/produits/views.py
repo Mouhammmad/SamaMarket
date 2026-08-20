@@ -514,3 +514,36 @@ class ProduitVarianteViewSet(ModelViewSet):
             raise ValidationError(
                 {"detail": "Aucune boutique."}
             )
+
+from django.utils import timezone
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny
+
+from .models import Promotion
+from .serializers import PromotionSerializer
+
+
+class VueListeOffres(ListAPIView):
+
+    serializer_class = PromotionSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+
+    def get_queryset(self):
+
+        aujourd_hui = timezone.now().date()
+
+        return (
+            Promotion.objects
+            .filter(
+                est_active=True,
+                date_debut__lte=aujourd_hui,
+                date_fin__gte=aujourd_hui
+            )
+            .select_related('boutique')
+            .prefetch_related(
+                'produits',
+                'produits__images'
+            )
+            .order_by('-date_debut')
+        )

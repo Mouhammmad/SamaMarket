@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'commandes',
     'produits',
     'boutiques',
+   'messages.apps.MessagesConfig',
 
 ]
 

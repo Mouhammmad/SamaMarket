@@ -12,6 +12,7 @@ from .views import (
 )
 from .views import VendeurProduitViewSet
 from .views import CategorieViewSet
+from .views import VueListeOffres
 
 router = DefaultRouter()
 router.register(r'favoris', FavoriViewSet, basename='favoris')
@@ -47,4 +48,5 @@ urlpatterns = [
     path('categories/', VueListeCategories.as_view()),
     path('<int:pk>/', VueDetailProduit.as_view(), name='produit-detail'),
     path('', include(router.urls)),
+    path('offres/', VueListeOffres.as_view(), name='offres'),
 ]
