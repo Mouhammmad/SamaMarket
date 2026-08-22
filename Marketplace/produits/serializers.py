@@ -438,12 +438,19 @@ class ProduitCreateSerializer(serializers.ModelSerializer):
 
         images = request.FILES.getlist("images")
 
+        if not images and request.FILES.get("image"):
+            images = [request.FILES["image"]]
+
         for index, image in enumerate(images):
             ProduitImage.objects.create(
                 produit=produit,
                 image=image,
                 ordre=index
             )
+
+        if images and not produit.image:
+            produit.image = images[0]
+            produit.save(update_fields=["image"])
 
         return produit
 

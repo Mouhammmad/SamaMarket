@@ -4,11 +4,11 @@ from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import logging
-
+from django.shortcuts import get_object_or_404
 from boutiques.models import Boutique
 from commandes.models import Commande
 from produits.models import Produit
-
+from django.db.models import Q
 from .serializers import SerializerVendeursEnAttente, SerializerUtilisateursRecents
 import csv
 from django.http import HttpResponse
@@ -105,7 +105,7 @@ class VueVendeursEnAttente(APIView):
 
         boutique.apprové = bool(approve)
         boutique.save(update_fields=['apprové'])
-        return Response({'detail': 'Décision enregistrée.', 'approved': boutique.approuvé})
+        return Response({'detail': 'Décision enregistrée.', 'approved': boutique.apprové})
 
 
 class VueUtilisateursRecents(APIView):
@@ -158,12 +158,34 @@ class VueListeUtilisateurs(ListAPIView):
             return User.objects.none()
 
         recherche = self.request.GET.get("search")
+        role = self.request.GET.get("role")
+        statut = self.request.GET.get("statut")
 
         queryset = User.objects.all().order_by("-date_joined")
 
         if recherche:
+
             queryset = queryset.filter(
-                username__icontains=recherche
+                Q(username__icontains=recherche)
+            |   Q(first_name__icontains=recherche)
+            |   Q(last_name__icontains=recherche)
+            |   Q(email__icontains=recherche)
+            |   Q(role__icontains=recherche)
+            )
+
+        if role:
+            queryset = queryset.filter(
+            role=role.upper()
+            )
+
+        if statut == "actif":
+            queryset = queryset.filter(
+            is_active=True
+            )
+
+        elif statut == "suspendu":
+            queryset = queryset.filter(
+                is_active=False
             )
 
         return queryset
@@ -202,20 +224,30 @@ class VueGestionUtilisateur(APIView):
                 status=403
             )
 
-        utilisateur = User.objects.get(pk=pk)
+        utilisateur = get_object_or_404(User, pk=pk)
 
         action = request.data.get("action")
 
         if action == "suspendre":
+
             utilisateur.is_active = False
 
         elif action == "reactiver":
+
             utilisateur.is_active = True
 
-        utilisateur.save()
+        else:
+
+            return Response(
+                {"detail": "Action invalide."},
+                status=400
+            )
+
+        utilisateur.save(update_fields=["is_active"])
 
         return Response({
-            "message": "Utilisateur mis à jour."
+            "message": "Utilisateur mis à jour.",
+            "is_active": utilisateur.is_active
         })
 
     def delete(self, request, pk):
@@ -226,13 +258,13 @@ class VueGestionUtilisateur(APIView):
                 status=403
             )
 
-        utilisateur = User.objects.get(pk=pk)
+        utilisateur = get_object_or_404(User, pk=pk)
 
         utilisateur.delete()
 
         return Response({
             "message": "Utilisateur supprimé."
-        })   
+        })
 class VueListeBoutiques(APIView):
 
     permission_classes = [IsAuthenticated]

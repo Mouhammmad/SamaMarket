@@ -23,6 +23,35 @@ class SerializerVendeursEnAttente(serializers.ModelSerializer):
 
 
 class SerializerUtilisateursRecents(serializers.ModelSerializer):
+
+    nom = serializers.SerializerMethodField()
+
+    statut = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'date_joined', 'role']
+
+        fields = [
+            'id',
+            'username',
+            'nom',
+            'email',
+            'role',
+            'phone',
+            'date_joined',
+            'is_active',
+            'statut',
+        ]
+
+    def get_nom(self, obj):
+
+        nom_complet = obj.get_full_name()
+
+        if nom_complet:
+            return nom_complet
+
+        return obj.username
+
+    def get_statut(self, obj):
+
+        return 'Actif' if obj.is_active else 'Suspendu'

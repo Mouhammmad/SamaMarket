@@ -27,4 +27,5 @@ path(
     "boutiques/",
     VueListeBoutiques.as_view()
 ),
+
 ]

@@ -13,10 +13,15 @@ from .views import (
 from .views import VendeurProduitViewSet
 from .views import CategorieViewSet
 from .views import VueListeOffres
-
+from .views import AdminProduitViewSet
 router = DefaultRouter()
 router.register(r'favoris', FavoriViewSet, basename='favoris')
 router.register(r'avis', AvisViewSet, basename='avis')
+router.register(
+    r'admin/produits',
+    AdminProduitViewSet,
+    basename='admin-produits'
+)
 router.register(r'promotions', PromotionViewSet, basename='promotions')
 router.register(r'produits', ProduitViewSet, basename='produits')
 router.register(

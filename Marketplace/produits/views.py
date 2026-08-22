@@ -7,7 +7,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.exceptions import ValidationError
 from .models import Favori, Avis, Promotion, Produit, Categorie, ProduitImage, ProduitVariante
 from .serializers import FavoriSerializer, AvisSerializer, PromotionSerializer, ProduitSerializer
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from boutiques.models import Boutique
 from .serializers import ProduitCreateSerializer
 import django_filters
@@ -16,6 +16,17 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from .serializers import ProduitVarianteSerializer, CategorieSerializer
 from .pagination import ProduitPagination
 from rest_framework.viewsets import ReadOnlyModelViewSet
+
+
+from django.db.models import Avg, FloatField, Value
+from django.db.models.functions import Coalesce
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 class CategorieViewSet(ReadOnlyModelViewSet):
 
@@ -384,7 +395,11 @@ class ProduitViewSet(ModelViewSet):
 
     def get_queryset(self):
         return Produit.objects.filter(est_actif=True).select_related('categorie', 'boutique').annotate(
-            note_moyenne=Coalesce(Avg('avis__note'), Value(0))
+            note_moyenne=Coalesce(
+                Avg('avis__note'),
+                Value(0.0),
+                output_field=FloatField()
+            )
         )
 
     def list(self, request, *args, **kwargs):
@@ -425,7 +440,7 @@ class ProduitViewSet(ModelViewSet):
 class VendeurProduitViewSet(ModelViewSet):
     serializer_class = ProduitSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['categorie']
     search_fields = ['nom', 'description']
@@ -463,28 +478,8 @@ class VendeurProduitViewSet(ModelViewSet):
 
         boutique = self.get_boutique()
 
-        produit = serializer.save(
+        serializer.save(
         boutique=boutique
-        )
-
-        images = self.request.FILES.getlist("images")
-
-        if images:
-
-            for index, image in enumerate(images):
-
-                ProduitImage.objects.create(
-                    produit=produit,
-                    image=image,
-                    ordre=index
-                )
-
-        elif self.request.FILES.get("image"):
-
-            ProduitImage.objects.create(
-            produit=produit,
-            image=self.request.FILES["image"],
-            ordre=0
         )
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -547,3 +542,68 @@ class VueListeOffres(ListAPIView):
             )
             .order_by('-date_debut')
         )
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+
+
+class AdminProduitViewSet(ModelViewSet):
+    """
+    Gestion des produits par l'administrateur.
+
+    Contrairement au ViewSet public, l'admin peut voir
+    les produits actifs ET inactifs.
+    """
+
+    serializer_class = ProduitSerializer
+    permission_classes = [IsAuthenticated]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter
+    ]
+
+    filterset_class = ProduitFilter
+
+    search_fields = [
+        'nom',
+        'description',
+        'categorie__nom',
+        'boutique__nom',
+    ]
+
+    ordering_fields = [
+        'prix',
+        'date_creation',
+        'nom',
+        'quantite_stock',
+        'est_actif',
+    ]
+
+    ordering = ['-date_creation']
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        # Sécurité : seul l'administrateur
+        # peut utiliser cet endpoint
+        if getattr(user, 'role', '').upper() != 'ADMIN':
+            raise PermissionDenied(
+                'Accès réservé aux administrateurs.'
+            )
+
+        return Produit.objects.all() \
+            .select_related(
+                'categorie',
+                'boutique'
+            ) \
+            .annotate(
+                note_moyenne=Coalesce(
+                    Avg('avis__note'),
+                    Value(0.0),
+                    output_field=FloatField()
+                )
+            )

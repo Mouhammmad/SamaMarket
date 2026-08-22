@@ -553,3 +553,105 @@ class CommandeVendeurViewSet(GenericViewSet):
         "chiffre_affaires": chiffre_affaires
 
     })
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+
+
+class AdminCommandeViewSet(ModelViewSet):
+    """
+    Gestion globale des commandes par l'administrateur.
+    L'administrateur peut consulter toutes les commandes
+    de la plateforme et modifier leur statut.
+    """
+
+    serializer_class = CommandeSerializer
+    permission_classes = [IsAuthenticated]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter
+    ]
+
+    search_fields = [
+        'numero',
+        'utilisateur__first_name',
+        'utilisateur__last_name',
+        'utilisateur__username',
+        'utilisateur__email',
+    ]
+
+    ordering_fields = [
+        'date_creation',
+        'sous_total',
+        'statut',
+    ]
+
+    ordering = ['-date_creation']
+
+    def get_queryset(self):
+
+        user = self.request.user
+
+        # Sécurité : seul l'administrateur
+        # peut accéder à cette API
+        if getattr(user, 'role', '').upper() != 'ADMIN':
+            raise PermissionDenied(
+                'Accès réservé aux administrateurs.'
+            )
+
+        return Commande.objects.all().select_related(
+            'utilisateur',
+            'boutique',
+            'paiement'
+        ).prefetch_related(
+            'lignes',
+            'lignes__produit'
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+
+        commande = self.get_object()
+
+        nouveau_statut = request.data.get('statut')
+
+        if nouveau_statut:
+
+            statuts_valides = dict(
+                Commande.STATUT_CHOICES
+            )
+
+            if nouveau_statut not in statuts_valides:
+                return Response(
+                    {
+                        'erreur': 'Statut invalide.',
+                        'statuts_valides': list(
+                            statuts_valides.keys()
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            commande.statut = nouveau_statut
+            commande.save(
+                update_fields=['statut']
+            )
+
+            return Response(
+                CommandeSerializer(
+                    commande,
+                    context={
+                        'request': request
+                    }
+                ).data
+            )
+
+        return super().partial_update(
+            request,
+            *args,
+            **kwargs
+        )
