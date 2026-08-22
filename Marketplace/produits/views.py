@@ -295,9 +295,13 @@ class AvisViewSet(GenericViewSet):
         if est_vendeur:
             if not request.user.is_authenticated:
                 return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
-            if getattr(request.user, 'role', '').upper() not in {'VENDOR', 'ADMIN'}:
+            role = getattr(request.user, 'role', '').upper()
+            if role not in {'VENDOR', 'ADMIN'}:
                 return Response({'detail': 'Accès réservé aux vendeurs.'}, status=status.HTTP_403_FORBIDDEN)
-            avis = Avis.objects.filter(produit__boutique__responsable=request.user).select_related('produit', 'utilisateur').order_by('-date_creation')
+            avis = Avis.objects.all() if role == 'ADMIN' else Avis.objects.filter(
+                produit__boutique__responsable=request.user
+            )
+            avis = avis.select_related('produit', 'utilisateur').order_by('-date_creation')
             serializer = AvisSerializer(avis, many=True, context={'request': request})
             return Response(serializer.data)
 
@@ -345,12 +349,31 @@ class AvisViewSet(GenericViewSet):
 
     @action(detail=True, methods=['delete'])
     def supprimer(self, request, pk=None):
+        if getattr(request.user, 'role', '').upper() == 'ADMIN':
+            avis = get_object_or_404(Avis, pk=pk)
+            avis.delete()
+            return Response({'message': 'Avis supprimé'})
+
         try:
             avis = Avis.objects.get(id=pk, utilisateur=request.user)
             avis.delete()
             return Response({'message': 'Avis supprimé'})
         except Avis.DoesNotExist:
             return Response({'erreur': 'Avis introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['patch'], url_path='moderation')
+    def moderation(self, request, pk=None):
+        if getattr(request.user, 'role', '').upper() != 'ADMIN':
+            return Response({'detail': 'Accès réservé aux administrateurs.'}, status=status.HTTP_403_FORBIDDEN)
+
+        avis = get_object_or_404(Avis, pk=pk)
+        est_approuve = request.data.get('est_approuve')
+        if not isinstance(est_approuve, bool):
+            return Response({'detail': 'La valeur est_approuve doit être booléenne.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        avis.est_approuve = est_approuve
+        avis.save(update_fields=['est_approuve'])
+        return Response(AvisSerializer(avis, context={'request': request}).data)
 
 
 from rest_framework.viewsets import ModelViewSet

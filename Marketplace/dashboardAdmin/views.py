@@ -10,6 +10,7 @@ from commandes.models import Commande
 from produits.models import Produit
 from django.db.models import Q
 from .serializers import SerializerVendeursEnAttente, SerializerUtilisateursRecents
+from .models import ParametresPlateforme
 import csv
 from django.http import HttpResponse
 from django.utils import timezone
@@ -37,6 +38,68 @@ class AllowOptionsPermission(BasePermission):
         return request.method == 'OPTIONS' or bool(request.user and request.user.is_authenticated)
 
 
+class VueParametresPlateforme(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not has_admin_access(request.user):
+            return Response({'detail': 'Accès refusé.'}, status=403)
+        parametres, _ = ParametresPlateforme.objects.get_or_create(pk=1)
+        return Response({
+            'nom_plateforme': parametres.nom_plateforme,
+            'email_contact': parametres.email_contact,
+            'description': parametres.description,
+            'validation_vendeurs': parametres.validation_vendeurs,
+            'notifications_commandes': parametres.notifications_commandes,
+            'notifications_vendeurs': parametres.notifications_vendeurs,
+            'notifications_systeme': parametres.notifications_systeme,
+        })
+
+    def patch(self, request):
+        if not has_admin_access(request.user):
+            return Response({'detail': 'Accès refusé.'}, status=403)
+        parametres, _ = ParametresPlateforme.objects.get_or_create(pk=1)
+        champs = [
+            'nom_plateforme', 'email_contact', 'description',
+            'validation_vendeurs', 'notifications_commandes',
+            'notifications_vendeurs', 'notifications_systeme'
+        ]
+        for champ in champs:
+            if champ in request.data:
+                setattr(parametres, champ, request.data[champ])
+        parametres.save()
+        return self.get(request)
+
+
+class VueCreationAdmin(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not has_admin_access(request.user):
+            return Response({'detail': 'Accès refusé.'}, status=403)
+
+        username = str(request.data.get('username', '')).strip()
+        email = str(request.data.get('email', '')).strip()
+        password = str(request.data.get('password', ''))
+        if not username or len(password) < 8:
+            return Response({'detail': 'Nom d’utilisateur et mot de passe de 8 caractères minimum requis.'}, status=400)
+        if User.objects.filter(username=username).exists():
+            return Response({'detail': 'Ce nom d’utilisateur existe déjà.'}, status=400)
+
+        admin = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            role='ADMIN'
+        )
+        return Response({
+            'id': admin.id,
+            'username': admin.username,
+            'email': admin.email,
+            'role': admin.role
+        }, status=201)
+
+
 class VueStatistiquesAdmin(APIView):
 
     permission_classes = [AllowOptionsPermission]
@@ -50,14 +113,36 @@ class VueStatistiquesAdmin(APIView):
         prev_month_end = start_month - timedelta(days=1)
         prev_month_start = prev_month_end.replace(day=1)
 
+        periode = request.query_params.get('periode', 'ce_mois')
+        if periode == 'aujourd_hui':
+            periode_start = today
+            periode_end = today
+        elif periode == 'mois_precedent':
+            periode_start = prev_month_start
+            periode_end = prev_month_end
+        elif periode == 'global':
+            periode_start = None
+            periode_end = None
+        else:
+            periode = 'ce_mois'
+            periode_start = start_month
+            periode_end = today
+
         utilisateurs_total = User.objects.count()
         nouveaux_utilisateurs_mois = User.objects.filter(date_joined__date__gte=start_month).count()
         vendeurs_actifs = Boutique.objects.filter(apprové=True).count()
         vendeurs_en_attente = Boutique.objects.filter(apprové=False).count()
         produits_total = Produit.objects.count()
-        commandes_total = Commande.objects.count()
+        commandes = Commande.objects.all()
+        if periode_start is not None:
+            commandes = commandes.filter(
+                date_creation__date__gte=periode_start,
+                date_creation__date__lte=periode_end
+            )
+
+        commandes_total = commandes.count()
         commandes_du_jour = Commande.objects.filter(date_creation__date=today).count()
-        commandes_ce_mois = Commande.objects.filter(date_creation__date__gte=start_month).count()
+        commandes_ce_mois = commandes_total
         commandes_mois_precedent = Commande.objects.filter(date_creation__date__gte=prev_month_start, date_creation__date__lte=prev_month_end).count()
 
         def pct_change(curr, prev):
@@ -305,3 +390,28 @@ class VueDetailBoutique(APIView):
         serializer = SerializerVendeursEnAttente(boutique)
 
         return Response(serializer.data)
+
+    def patch(self, request, pk):
+
+        if not has_admin_access(request.user):
+            return Response(
+                {"detail": "Accès refusé"},
+                status=403
+            )
+
+        boutique = get_object_or_404(Boutique, pk=pk)
+        approuve = request.data.get('apprové')
+
+        if not isinstance(approuve, bool):
+            return Response(
+                {"detail": "La valeur apprové doit être booléenne."},
+                status=400
+            )
+
+        boutique.apprové = approuve
+        boutique.save(update_fields=['apprové'])
+
+        return Response({
+            "message": "Boutique mise à jour.",
+            "apprové": boutique.apprové
+        })
