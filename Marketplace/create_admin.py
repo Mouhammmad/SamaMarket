@@ -7,20 +7,32 @@ django.setup()
 from comptes.models import User
 
 username = os.getenv("ADMIN_USERNAME")
+email = os.getenv("ADMIN_EMAIL")
+password = os.getenv("ADMIN_PASSWORD")
 
-try:
-    user = User.objects.get(username=username)
+if not username or not password:
+    raise Exception("ADMIN_USERNAME ou ADMIN_PASSWORD manquant")
 
-    print("========== VERIFICATION ADMIN ==========")
-    print("Utilisateur trouvé :", True)
-    print("Username :", user.username)
-    print("Role :", user.role)
-    print("is_active :", user.is_active)
-    print("is_staff :", user.is_staff)
-    print("is_superuser :", user.is_superuser)
-    print("========================================")
+user, created = User.objects.get_or_create(
+    username=username,
+    defaults={
+        "email": email or "",
+        "role": "ADMIN",
+        "is_staff": True,
+        "is_superuser": True,
+        "is_active": True,
+    }
+)
 
-except User.DoesNotExist:
-    print("========== VERIFICATION ADMIN ==========")
-    print("Utilisateur trouvé :", False)
-    print("========================================")
+if created:
+    user.set_password(password)
+    user.save()
+    print(f"Administrateur {username} créé avec succès.")
+else:
+    user.role = "ADMIN"
+    user.is_staff = True
+    user.is_superuser = True
+    user.is_active = True
+    user.set_password(password)
+    user.save()
+    print(f"Administrateur {username} mis à jour avec succès.")
