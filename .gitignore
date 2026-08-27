@@ -9,3 +9,6 @@ staticfiles/
 .idea/
 .vscode/
 coverage/
+data.json
+data_utf8.json
+import_data.py
