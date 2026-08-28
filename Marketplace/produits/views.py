@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveAPIView
 from rest_framework.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from .models import Favori, Avis, Promotion, Produit, Categorie, ProduitImage, ProduitVariante
 from .serializers import FavoriSerializer, AvisSerializer, PromotionSerializer, ProduitSerializer
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -197,12 +198,20 @@ class VueListeProduits(ListAPIView):
 
 )
 
-class VueListeCategories(ListAPIView):
+class VueListeCategories(ListCreateAPIView):
     queryset = Categorie.objects.all()
     permission_classes = [AllowAny]
     pagination_class = None
+    serializer_class = CategorieSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated()]
+        return [AllowAny()]
     
     def get_serializer(self, *args, **kwargs):
+        if self.request.method == 'POST':
+            return CategorieSerializer(*args, **kwargs)
         from rest_framework import serializers
         class CategorieSerializer(serializers.ModelSerializer):
             class Meta:
