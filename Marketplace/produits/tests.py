@@ -1,12 +1,13 @@
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from Marketplace import settings as marketplace_settings
+from .serializers import ProduitCreateSerializer
 
 from boutiques.models import Boutique
 from comptes.models import User
@@ -29,6 +30,49 @@ class CloudinaryConfigTests(TestCase):
             clear=False,
         ):
             self.assertTrue(marketplace_settings.has_cloudinary_config())
+
+
+class ProduitCreateSerializerTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='vendeur', password='secret123')
+        self.categorie = Categorie.objects.create(nom='Électronique')
+        self.boutique = Boutique.objects.create(
+            responsable=self.user,
+            nom='Boutique Remote',
+            description='Boutique de test',
+            ville='Dakar'
+        )
+
+    @patch('produits.serializers.urlopen')
+    def test_accepts_external_image_url(self, mock_urlopen):
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'fake-image-bytes'
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        request = APIRequestFactory().post(
+            '/api/produits/',
+            {
+                'nom': 'Produit depuis URL',
+                'description': 'Description',
+                'prix': '2500.00',
+                'categorie_id': self.categorie.id,
+                'image_url': 'https://example.com/images/produit.jpg',
+            },
+            format='multipart'
+        )
+
+        serializer = ProduitCreateSerializer(data={
+            'nom': 'Produit depuis URL',
+            'description': 'Description',
+            'prix': '2500.00',
+            'categorie_id': self.categorie.id,
+            'image_url': 'https://example.com/images/produit.jpg',
+        }, context={'request': request})
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        produit = serializer.save(boutique=self.boutique)
+        self.assertTrue(produit.image)
+        self.assertIn('produit', produit.image.name)
 
 
 class ProduitDetailApiTests(TestCase):

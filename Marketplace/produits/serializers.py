@@ -1,4 +1,9 @@
-﻿from rest_framework import serializers
+﻿import os
+from urllib.parse import urlparse
+from urllib.request import urlopen
+
+from django.core.files.base import ContentFile
+from rest_framework import serializers
 from .models import Favori, Avis, Promotion, Produit, Categorie, ProduitImage, ProduitVariante
 from django.db.models import Avg
 from django.utils import timezone
@@ -408,6 +413,7 @@ class ProduitCreateSerializer(serializers.ModelSerializer):
         queryset=Categorie.objects.all(),
         source='categorie'
     )
+    image_url = serializers.URLField(required=False, allow_blank=True, write_only=True)
 
     class Meta:
         model = Produit
@@ -427,18 +433,54 @@ class ProduitCreateSerializer(serializers.ModelSerializer):
             'longueur',
             'mots_cles',
             'image',
+            'image_url',
             'categorie_id',
             'est_actif'
         ]
+
+    def _download_image_from_url(self, url):
+        try:
+            with urlopen(url) as response:
+                content = response.read()
+        except Exception as exc:
+            raise serializers.ValidationError({
+                'image_url': 'Impossible de télécharger l’image depuis cette URL.'
+            }) from exc
+
+        if not content:
+            raise serializers.ValidationError({
+                'image_url': 'L’image distante est vide.'
+            })
+
+        filename = os.path.basename(urlparse(url).path) or 'image.jpg'
+        if not os.path.splitext(filename)[1]:
+            filename = f'{os.path.splitext(filename)[0]}.jpg'
+
+        return ContentFile(content, name=filename)
+
+    def validate(self, attrs):
+        image = attrs.get('image')
+        image_url = attrs.pop('image_url', None)
+
+        if image_url and not image:
+            attrs['image'] = self._download_image_from_url(image_url)
+
+        return attrs
 
     def create(self, validated_data):
         request = self.context["request"]
 
         produit = Produit.objects.create(**validated_data)
 
-        images = request.FILES.getlist("images")
+        images = request.FILES.getlist("images") if hasattr(request, 'FILES') else []
+        image_urls = []
 
-        if not images and request.FILES.get("image"):
+        if hasattr(request, 'data'):
+            image_urls = request.data.getlist("images_url")
+        elif hasattr(request, 'POST'):
+            image_urls = request.POST.getlist("images_url")
+
+        if not images and hasattr(request, 'FILES') and request.FILES.get("image"):
             images = [request.FILES["image"]]
 
         for index, image in enumerate(images):
@@ -448,8 +490,19 @@ class ProduitCreateSerializer(serializers.ModelSerializer):
                 ordre=index
             )
 
+        for index, image_url in enumerate(image_urls, start=len(images)):
+            downloaded = self._download_image_from_url(image_url)
+            ProduitImage.objects.create(
+                produit=produit,
+                image=downloaded,
+                ordre=index
+            )
+
         if images and not produit.image:
             produit.image = images[0]
+            produit.save(update_fields=["image"])
+        elif image_urls and not produit.image:
+            produit.image = self._download_image_from_url(image_urls[0])
             produit.save(update_fields=["image"])
 
         return produit
