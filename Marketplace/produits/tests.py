@@ -1,11 +1,34 @@
+import os
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from Marketplace import settings as marketplace_settings
+
 from boutiques.models import Boutique
 from comptes.models import User
 from .models import Categorie, Produit, Favori, Avis
+
+
+class CloudinaryConfigTests(TestCase):
+    def test_detects_cloudinary_url_configuration(self):
+        with patch.dict(os.environ, {'CLOUDINARY_URL': 'cloudinary://key:secret@demo'}, clear=False):
+            self.assertTrue(marketplace_settings.has_cloudinary_config())
+
+    def test_detects_individual_cloudinary_configuration(self):
+        with patch.dict(
+            os.environ,
+            {
+                'CLOUDINARY_CLOUD_NAME': 'demo',
+                'CLOUDINARY_API_KEY': '123',
+                'CLOUDINARY_API_SECRET': 'secret',
+            },
+            clear=False,
+        ):
+            self.assertTrue(marketplace_settings.has_cloudinary_config())
 
 
 class ProduitDetailApiTests(TestCase):

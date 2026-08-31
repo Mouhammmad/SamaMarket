@@ -166,20 +166,35 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+def has_cloudinary_config():
+    cloudinary_url = os.getenv('CLOUDINARY_URL')
+    if cloudinary_url:
+        return True
+
+    return bool(
+        os.getenv('CLOUDINARY_CLOUD_NAME')
+        and os.getenv('CLOUDINARY_API_KEY')
+        and os.getenv('CLOUDINARY_API_SECRET')
+    )
+
+
 # Media files - Cloudinary configuration
-# Check if Cloudinary is configured
-if os.getenv('CLOUDINARY_CLOUD_NAME'):
+if has_cloudinary_config():
     try:
         import cloudinary
         DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-        cloudinary.config(
-            cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-            api_key=os.getenv('CLOUDINARY_API_KEY'),
-            api_secret=os.getenv('CLOUDINARY_API_SECRET'),
-        )
+
+        if os.getenv('CLOUDINARY_URL'):
+            cloudinary.config()
+        else:
+            cloudinary.config(
+                cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+                api_key=os.getenv('CLOUDINARY_API_KEY'),
+                api_secret=os.getenv('CLOUDINARY_API_SECRET'),
+            )
+
         MEDIA_URL = '/media/'
     except ImportError:
-        # Fallback to local storage if cloudinary not installed
         MEDIA_URL = '/media/'
         MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 else:
