@@ -28,11 +28,12 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secure-key-with-sufficient-length-for-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
+default_hosts = 'localhost,127.0.0.1,testserver,samamarket.onrender.com,samamarket-api.onrender.com,samamarket-6afq.onrender.com'
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
         'ALLOWED_HOSTS',
-        'localhost,127.0.0.1,testserver'
+        default_hosts
     ).split(',')
     if host.strip()
 ]
