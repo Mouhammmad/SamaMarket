@@ -10,11 +10,21 @@ from django.utils import timezone
 from .models import Categorie
 
 class ProduitResumSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Produit
         fields = ['id', 'nom', 'prix', 'image', 'image_url']
+
+    def get_image(self, obj):
+        """Return image URL through custom Cloudinary storage."""
+        if obj.image:
+            try:
+                return obj.image.url
+            except (ValueError, AttributeError):
+                return None
+        return None
 
     def get_image_url(self, obj):
         request = self.context.get('request') if hasattr(self, 'context') else None
@@ -30,6 +40,7 @@ class ProduitResumSerializer(serializers.ModelSerializer):
 
 class ProduitImageSerializer(serializers.ModelSerializer):
 
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -40,6 +51,15 @@ class ProduitImageSerializer(serializers.ModelSerializer):
             "image_url",
             "ordre"
         ]
+
+    def get_image(self, obj):
+        """Return image URL through custom Cloudinary storage."""
+        if obj.image:
+            try:
+                return obj.image.url
+            except (ValueError, AttributeError):
+                return None
+        return None
 
     def get_image_url(self, obj):
         request = self.context.get("request")
@@ -53,6 +73,7 @@ class ProduitImageSerializer(serializers.ModelSerializer):
 
 class ProduitVarianteSerializer(serializers.ModelSerializer):
 
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     produit_id = serializers.PrimaryKeyRelatedField(
 
@@ -91,6 +112,15 @@ class ProduitVarianteSerializer(serializers.ModelSerializer):
 
 ]
 
+    def get_image(self, obj):
+        """Return image URL through custom Cloudinary storage."""
+        if obj.image:
+            try:
+                return obj.image.url
+            except (ValueError, AttributeError):
+                return None
+        return None
+
     def get_image_url(self, obj):
 
         request = self.context.get("request")
@@ -105,6 +135,7 @@ class ProduitVarianteSerializer(serializers.ModelSerializer):
         return None
 
 class ProduitSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     nombre_favoris = serializers.SerializerMethodField()
     nombre_avis = serializers.SerializerMethodField()
@@ -163,6 +194,15 @@ class ProduitSerializer(serializers.ModelSerializer):
             'stock_status',
             'est_favori'
         ]
+
+    def get_image(self, obj):
+        """Return image URL through custom Cloudinary storage."""
+        if obj.image:
+            try:
+                return obj.image.url
+            except (ValueError, AttributeError):
+                return None
+        return None
 
     def get_image_url(self, obj):
         request = self.context.get('request') if hasattr(self, 'context') else None
@@ -509,6 +549,7 @@ class ProduitCreateSerializer(serializers.ModelSerializer):
 
 class CategorieSerializer(serializers.ModelSerializer):
 
+    image = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
 
     nombre_produits = serializers.SerializerMethodField()
@@ -536,6 +577,15 @@ class CategorieSerializer(serializers.ModelSerializer):
             "sous_categories"
 
         ]
+
+    def get_image(self, obj):
+        """Return image URL through custom Cloudinary storage."""
+        if obj.image:
+            try:
+                return obj.image.url
+            except (ValueError, AttributeError):
+                return None
+        return None
 
     def get_image_url(self, obj):
 
