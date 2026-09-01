@@ -42,7 +42,8 @@ class CustomCloudinaryMediaStorage(MediaCloudinaryStorage):
             clean_name = clean_name.replace('produits/', 'samamarket/', 1)
         
         # Build Cloudinary URL
-        cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+        # Try CLOUDINARY_CLOUD_NAME first (settings.py uses this), then fallback to CLOUD_NAME
+        cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME') or os.getenv('CLOUD_NAME') or 'n4l6q6cy'
         base_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/v1"
         
         return f"{base_url}/{clean_name}"
