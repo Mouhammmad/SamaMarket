@@ -183,7 +183,8 @@ def has_cloudinary_config():
 if has_cloudinary_config():
     try:
         import cloudinary
-        DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+        # Use custom storage that converts paths to Cloudinary URLs
+        DEFAULT_FILE_STORAGE = 'Marketplace.storage.CustomCloudinaryMediaStorage'
 
         if os.getenv('CLOUDINARY_URL'):
             cloudinary.config()
