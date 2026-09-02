@@ -1,7 +1,7 @@
-"""Custom storage backend to serve images from Cloudinary."""
+"""Cloudinary storage with compatibility for migrated image paths."""
 
 import os
-import cloudinary.uploader
+
 from cloudinary_storage.storage import MediaCloudinaryStorage
 
 
@@ -30,20 +30,14 @@ class CustomCloudinaryMediaStorage(MediaCloudinaryStorage):
         
         name_str = str(name)
         
-        # If already a Cloudinary URL, return as-is
-        if name_str.startswith('http'):
+        # Preserve URLs stored directly by an external image provider.
+        if name_str.startswith(('http://', 'https://')):
             return name_str
-        
-        # Remove leading slash if present
+
         clean_name = name_str.lstrip('/')
-        
-        # Convert "produits/demo.jpg" → "samamarket/demo.jpg"
-        if clean_name.startswith('produits/'):
-            clean_name = clean_name.replace('produits/', 'samamarket/', 1)
-        
-        # Build Cloudinary URL
-        # Try CLOUDINARY_CLOUD_NAME first (settings.py uses this), then fallback to CLOUD_NAME
-        cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME') or os.getenv('CLOUD_NAME') or 'n4l6q6cy'
-        base_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/v1"
-        
-        return f"{base_url}/{clean_name}"
+        if clean_name.startswith('samamarket/'):
+            cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+            if cloud_name:
+                return f"https://res.cloudinary.com/{cloud_name}/image/upload/v1/{clean_name}"
+
+        return super().url(name)

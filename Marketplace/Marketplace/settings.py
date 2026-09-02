@@ -82,6 +82,7 @@ CORS_TRUSTED_ORIGINS = [
         'CORS_ALLOWED_ORIGINS', 'http://localhost:4200'
     ).split(',') if origin.strip()
 ]
+CORS_ALLOWED_ORIGINS = CORS_TRUSTED_ORIGINS
 
 # SMS configuration for notification delivery
 SMS_PROVIDER = os.getenv('SMS_PROVIDER', 'console')
@@ -183,6 +184,13 @@ def has_cloudinary_config():
 if has_cloudinary_config():
     try:
         import cloudinary
+
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+            'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+            'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+        }
+
         # Use custom storage that converts paths to Cloudinary URLs
         DEFAULT_FILE_STORAGE = 'Marketplace.storage.CustomCloudinaryMediaStorage'
 
