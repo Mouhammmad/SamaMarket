@@ -21,6 +21,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from django.db.models import Avg, FloatField, Value
 from django.db.models.functions import Coalesce
+from django.db import transaction
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
@@ -639,3 +640,28 @@ class AdminProduitViewSet(ModelViewSet):
                     output_field=FloatField()
                 )
             )
+
+    @action(detail=False, methods=['post'], url_path='nettoyer')
+    def nettoyer(self, request):
+        """Keep products 61-64 and remove all other product data."""
+        from commandes.models import ArticlePanier, LigneCommande
+
+        a_conserver = {61, 62, 63, 64}
+        produits = Produit.objects.exclude(id__in=a_conserver)
+
+        with transaction.atomic():
+            lignes_panier = ArticlePanier.objects.filter(produit__in=produits).delete()[0]
+            lignes_commandes = LigneCommande.objects.filter(produit__in=produits).delete()[0]
+            produits_supprimes = produits.count()
+            produits.delete()
+
+        return Response({
+            'produits_supprimes': produits_supprimes,
+            'articles_panier_supprimes': lignes_panier,
+            'lignes_commandes_supprimees': lignes_commandes,
+            'produits_conserves': list(
+                Produit.objects.filter(id__in=a_conserver)
+                .values_list('id', 'nom')
+                .order_by('id')
+            ),
+        })
