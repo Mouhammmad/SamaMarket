@@ -35,6 +35,9 @@ class CustomCloudinaryMediaStorage(MediaCloudinaryStorage):
             return name_str
 
         clean_name = name_str.lstrip('/')
+        if clean_name.startswith('media/'):
+            clean_name = clean_name[len('media/'):]
+
         if clean_name.startswith('samamarket/'):
             cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
             if cloud_name:

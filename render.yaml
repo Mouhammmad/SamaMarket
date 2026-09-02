@@ -20,6 +20,12 @@ services:
         value: https://samamarket-6afq.onrender.com,https://samamarket.onrender.com,http://localhost:4200
       - key: CSRF_TRUSTED_ORIGINS
         value: https://samamarket-6afq.onrender.com,https://samamarket.onrender.com,http://localhost:4200
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
 databases:
   - name: samamarket-db
