@@ -193,6 +193,14 @@ if has_cloudinary_config():
 
         # Use custom storage that converts paths to Cloudinary URLs
         DEFAULT_FILE_STORAGE = 'Marketplace.storage.CustomCloudinaryMediaStorage'
+        STORAGES = {
+            'default': {
+                'BACKEND': 'Marketplace.storage.CustomCloudinaryMediaStorage',
+            },
+            'staticfiles': {
+                'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+            },
+        }
 
         if os.getenv('CLOUDINARY_URL'):
             cloudinary.config()
